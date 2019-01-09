@@ -289,7 +289,7 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 	uniqueNameEndpointsNew := propsy.GenerateUniqueEndpointName(new.Namespace, new.Spec.Service)
 	uniqueNameEndpointsOld := propsy.GenerateUniqueEndpointName(new.Namespace, old.Spec.Service)
 	uniqueNameEndpointsCanaryNew := propsy.GenerateUniqueEndpointName(new.Namespace, new.Spec.CanaryService+CANARY_POSTFIX)
-	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(new.Namespace, new.Spec.CanaryService+CANARY_POSTFIX)
+	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(new.Namespace, old.Spec.CanaryService+CANARY_POSTFIX)
 
 	if old.Spec.ServicePort != new.Spec.ServicePort {
 		for i := range newNodes {

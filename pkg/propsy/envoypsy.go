@@ -123,8 +123,8 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				}
 				routes = append(routes, route.Route{
 					Match: route.RouteMatch{
-						PathSpecifier: &route.RouteMatch_Regex{
-							Regex: "/*", // TODO wut
+						PathSpecifier: &route.RouteMatch_Prefix{
+							Prefix: "/",
 						},
 					},
 					Action: &route.Route_Route{
@@ -155,6 +155,14 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				RouteConfig: &v2.RouteConfiguration{
 					Name:         _listener.Name,
 					VirtualHosts: vhosts,
+				},
+			},
+			HttpFilters: []*v22.HttpFilter{
+				{
+					Name: "envoy.router",
+					ConfigType: &v22.HttpFilter_Config{
+						Config: nil,
+					},
 				},
 			},
 		}
