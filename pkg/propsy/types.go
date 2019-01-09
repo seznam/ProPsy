@@ -59,6 +59,7 @@ func (N *NodeConfig) Free() {
 	for i := range N.Listeners {
 		N.Listeners[i].Free()
 	}
+	N.Listeners = []*ListenerConfig{}
 }
 
 func (N *NodeConfig) AddListener(l *ListenerConfig) {
@@ -114,6 +115,7 @@ func (V *RouteConfig) RemoveCluster(name string) {
 		if V.Clusters[cluster].Name == name {
 			V.Clusters[cluster] = V.Clusters[len(V.Clusters)-1]
 			V.Clusters = V.Clusters[:len(V.Clusters)-1]
+			return
 		}
 	}
 }
@@ -155,6 +157,16 @@ func (R *ListenerConfig) FindVHost(name string) *VirtualHost {
 	return nil
 }
 
+func (L *ListenerConfig) RemoveVHost(name string) {
+	for i := range L.VirtualHosts {
+		if L.VirtualHosts[i].Name == name {
+			L.VirtualHosts[i] = L.VirtualHosts[len(L.VirtualHosts)-1]
+			L.VirtualHosts = L.VirtualHosts[:len(L.VirtualHosts)-1]
+			return
+		}
+	}
+}
+
 func (L *ListenerConfig) Free() {
 	for i := range L.VirtualHosts {
 		L.VirtualHosts[i].Free()
@@ -167,7 +179,7 @@ func (C *ClusterConfig) Free() {
 		C.EndpointConfig.Endpoints[i] = nil
 	}
 
-	C.EndpointConfig = nil
+	C.EndpointConfig.Endpoints = map[*Locality][]*Endpoint{}
 }
 
 func GenerateUniqueEndpointName(namespace, name string) string {
