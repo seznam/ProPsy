@@ -1,0 +1,14 @@
+apiVersion: propsy.seznam.cz/v1
+kind: ProPsyService
+metadata:
+  name: test
+  namespace: default
+spec:
+  disabled: false
+  listen: 0:6444
+  nodes:
+  - e2e-test
+  percent: 99
+  service: kubernetes
+  servicePort: 6443
+

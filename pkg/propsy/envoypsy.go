@@ -15,6 +15,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,8 @@ func init() {
 	api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
 	api.RegisterRouteDiscoveryServiceServer(grpcServer, server)
 	api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
+
+	reflection.Register(grpcServer)
 }
 
 func GetGRPCServer() *grpc.Server {
