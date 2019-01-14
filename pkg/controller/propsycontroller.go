@@ -286,20 +286,22 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 	}
 
 	uniqueName := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Name)
+	var newNodes []*propsy.NodeConfig
 
 	if !reflect.DeepEqual(old.Spec.Nodes, new.Spec.Nodes) {
-		// TODO rework nodes.. bleh :P code below will crash on node change until this gets implemented
 		for nodeI := range old.Spec.Nodes {
-			C.ppsCache.GetOrCreateNode(old.Spec.Nodes[nodeI]).RemoveListener(uniqueName)
+			if !DoesListContain(new.Spec.Nodes, old.Spec.Nodes[nodeI]) {
+				C.ppsCache.GetOrCreateNode(old.Spec.Nodes[nodeI]).RemoveListener(uniqueName)
+			}
 		}
-	}
 
-	var newNodes []*propsy.NodeConfig
-	for i := 0; i < len(new.Spec.Nodes); i++ {
-		node := C.ppsCache.GetOrCreateNode(new.Spec.Nodes[i])
-		newNodes = append(newNodes, node)
-		if !DoesListContain(old.Spec.Nodes, new.Spec.Nodes[i]) {
-			node.AddListener(C.NewListenerConfig(old)) // generate with old config so updates can work
+		for i := range new.Spec.Nodes {
+			node := C.ppsCache.GetOrCreateNode(new.Spec.Nodes[i])
+			newNodes = append(newNodes, node)
+			if !DoesListContain(old.Spec.Nodes, new.Spec.Nodes[i]) {
+				node.AddListener(C.NewListenerConfig(old)) // generate with old config so updates can work
+				logrus.Infof("Adding a new node: %s", newNodes[i].NodeName)
+			}
 		}
 	}
 
@@ -311,54 +313,6 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 	uniqueNameEndpointsOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.Service)
 	uniqueNameEndpointsCanaryNew := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Spec.CanaryService+CANARY_POSTFIX)
 	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.CanaryService+CANARY_POSTFIX)
-
-	if old.Spec.ServicePort != new.Spec.ServicePort {
-		for i := range newNodes {
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).FindCluster(uniqueNameEndpointsNew).EndpointConfig.ServicePort = new.Spec.ServicePort
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).FindCluster(uniqueNameEndpointsCanaryNew).EndpointConfig.ServicePort = new.Spec.ServicePort
-		}
-
-		// regenerate endpoint list
-		endpoints, err := C.endpointGetter.Endpoints(new.Namespace).Get(new.Spec.Service, v12.GetOptions{})
-		if err != nil {
-			copied := endpoints.DeepCopy()
-			copied.Annotations["foobar"] = "old" // force change
-			C.EndpointChanged(copied, endpoints)
-		}
-
-		if new.Spec.CanaryService != "" {
-			endpointsCanary, err := C.endpointGetter.Endpoints(new.Namespace).Get(new.Spec.CanaryService, v12.GetOptions{})
-			if err == nil {
-				copied := endpointsCanary.DeepCopy()
-				copied.Annotations["foobar"] = "old" // force change
-				C.EndpointChanged(copied, endpointsCanary)
-			}
-		}
-	}
-
-	if old.Spec.Listen != new.Spec.Listen {
-		for i := range newNodes {
-			newNodes[i].FindListener(uniqueName).Listen = new.Spec.Listen
-		}
-	}
-
-	if old.Spec.Disabled != new.Spec.Disabled {
-
-	}
-
-	if old.Spec.Timeout != new.Spec.Timeout {
-		for i := range newNodes {
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
-				FindCluster(uniqueNameEndpointsNew).ConnectTimeout = new.Spec.Timeout
-		}
-	}
-
-	if old.Spec.Percent != new.Spec.Percent {
-		for i := range newNodes {
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
-				FindCluster(uniqueNameEndpointsNew).Weight = new.Spec.Percent
-		}
-	}
 
 	if old.Spec.Service != new.Spec.Service {
 		// disconnect old services
@@ -385,6 +339,56 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 			FindCluster(uniqueNameEndpointsCanaryNew).EndpointConfig, newNodes)
 		if old.Spec.CanaryService != "" {
 			C.ppsCache.RemoveEndpointSet(uniqueNameEndpointsCanaryOld, newNodes)
+		}
+	}
+
+	if old.Spec.ServicePort != new.Spec.ServicePort {
+		for i := range newNodes {
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).FindCluster(uniqueNameEndpointsNew).EndpointConfig.ServicePort = new.Spec.ServicePort
+			if new.Spec.CanaryService != "" {
+				newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).FindCluster(uniqueNameEndpointsCanaryNew).EndpointConfig.ServicePort = new.Spec.ServicePort
+			}
+		}
+
+		// regenerate endpoint list
+		endpoints, err := C.endpointGetter.Endpoints(new.Namespace).Get(new.Spec.Service, v12.GetOptions{})
+		if err != nil {
+			copied := endpoints.DeepCopy()
+			copied.Annotations = map[string]string{"test": "copied"} // force change
+			C.EndpointChanged(copied, endpoints)
+		}
+
+		if new.Spec.CanaryService != "" {
+			endpointsCanary, err := C.endpointGetter.Endpoints(new.Namespace).Get(new.Spec.CanaryService, v12.GetOptions{})
+			if err == nil {
+				copied := endpointsCanary.DeepCopy()
+				copied.Annotations = map[string]string{"test": "copied"} // force change
+				C.EndpointChanged(copied, endpointsCanary)
+			}
+		}
+	}
+
+	if old.Spec.Listen != new.Spec.Listen {
+		for i := range newNodes {
+			newNodes[i].FindListener(uniqueName).Listen = new.Spec.Listen
+		}
+	}
+
+	if old.Spec.Disabled != new.Spec.Disabled {
+
+	}
+
+	if old.Spec.Timeout != new.Spec.Timeout {
+		for i := range newNodes {
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
+				FindCluster(uniqueNameEndpointsNew).ConnectTimeout = new.Spec.Timeout
+		}
+	}
+
+	if old.Spec.Percent != new.Spec.Percent {
+		for i := range newNodes {
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
+				FindCluster(uniqueNameEndpointsNew).Weight = new.Spec.Percent
 		}
 	}
 

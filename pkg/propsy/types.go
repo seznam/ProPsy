@@ -79,6 +79,7 @@ func (N *NodeConfig) FindListener(name string) *ListenerConfig {
 }
 
 func (N *NodeConfig) RemoveListener(s string) {
+	logrus.Debugf("Removing listener %s from node %s", s, N.NodeName)
 	for i := range N.Listeners {
 		if N.Listeners[i].Name == s {
 			N.Listeners[i] = N.Listeners[len(N.Listeners)-1]
@@ -86,6 +87,7 @@ func (N *NodeConfig) RemoveListener(s string) {
 			return
 		}
 	}
+	logrus.Debugf("No such listener found!")
 }
 
 func (L *VirtualHost) AddRoute(r *RouteConfig) {

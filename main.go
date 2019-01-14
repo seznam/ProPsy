@@ -42,10 +42,12 @@ func (i ConnectedClusters) Set(flag string) error {
 
 var connectedClusters ConnectedClusters
 var localZone string
+var debugMode bool
 
 func init() {
 	flag.StringVar(&localZone, "zone", "", "Local zone")
 	flag.Var(&connectedClusters, "cluster", "Kubernetes cluster map kubeconfigPath:zone")
+	flag.BoolVar(&debugMode, "debug", false, "Enable debug output")
 
 	localities = map[string]*propsy.Locality{}
 }
@@ -53,6 +55,13 @@ func init() {
 func main() {
 
 	flag.Parse()
+
+	if debugMode {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+
 	if len(connectedClusters) == 0 {
 		log.Fatal("There are zero clusters defined. Exitting!")
 	}
