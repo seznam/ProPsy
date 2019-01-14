@@ -88,7 +88,9 @@ func TestNodeConfig(T *testing.T) {
 }
 
 func TestUnique(T *testing.T) {
-	if GenerateUniqueEndpointName("namespace", "test") != "namespace-test" {
+	locality := &Locality{Zone: "test"}
+
+	if GenerateUniqueEndpointName(locality, "namespace", "test") != "test-namespace-test" {
 		log.Fatalf("Wrong uniquely generated endpoint name!")
 	}
 }
