@@ -117,7 +117,7 @@ func (C *ProPsyController) WaitForInitialSync(stop <-chan struct{}) {
 }
 
 func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
-	name := propsy.GenerateUniqueEndpointName(endpoint.Namespace, endpoint.Name)
+	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
 	if ecs == nil {
 		return
@@ -138,7 +138,7 @@ func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
 }
 
 func (C *ProPsyController) EndpointRemoved(endpoint *v1.Endpoints) {
-	name := propsy.GenerateUniqueEndpointName(endpoint.Namespace, endpoint.Name)
+	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
 	for i := range ecs {
 		ecs[i].ClearLocality(C.locality)
@@ -154,7 +154,7 @@ func (C *ProPsyController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoints)
 		return
 	}
 
-	name := propsy.GenerateUniqueEndpointName(old.Namespace, old.Name)
+	name := propsy.GenerateUniqueEndpointName(C.locality, old.Namespace, old.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
 
 	C.ppsCache.MutexEndpoints.Lock() // lock to prevent other localities resetting before we fill in ourselves to avoid sending config with empty data
@@ -170,19 +170,16 @@ func (C *ProPsyController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoints)
 	}
 }
 
-func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
-	// TODO support disabled flag
-	var nodes []*propsy.NodeConfig
-	for i := 0; i < len(pps.Spec.Nodes); i++ {
-		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
-		nodes = append(nodes, node)
-		logrus.Infof("Node: %p, %s", node, node.NodeName)
+func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool) *propsy.ClusterConfig {
+	var endpointName string
+	var percent int
+	if isCanary {
+		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService)
+		percent = pps.Spec.CanaryPercent
+	} else {
+		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service)
+		percent = pps.Spec.Percent
 	}
-
-	uniqueName := propsy.GenerateUniqueEndpointName(pps.Namespace, pps.Name)
-	uniqueNameCanary := propsy.GenerateUniqueEndpointName(pps.Namespace, pps.Name+CANARY_POSTFIX)
-	endpointName := propsy.GenerateUniqueEndpointName(pps.Namespace, pps.Spec.Service)
-	endpointNameCanary := propsy.GenerateUniqueEndpointName(pps.Namespace, pps.Spec.CanaryService)
 
 	endpointConfig := propsy.EndpointConfig{
 		Name:        endpointName,
@@ -190,56 +187,43 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 		Endpoints:   map[*propsy.Locality][]*propsy.Endpoint{},
 	}
 
-	endpointConfigCanary := propsy.EndpointConfig{
-		Name:        endpointNameCanary,
-		ServicePort: pps.Spec.ServicePort,
-		Endpoints:   map[*propsy.Locality][]*propsy.Endpoint{},
-	}
-
-	clusterConfig := propsy.ClusterConfig{
-		Weight: pps.Spec.Percent,
-
-		Name:           uniqueName,
+	return &propsy.ClusterConfig{
 		ConnectTimeout: pps.Spec.Timeout,
+		Name:           endpointName,
+		Weight:         percent,
 		EndpointConfig: &endpointConfig,
 	}
+}
 
-	clusterConfigCanary := propsy.ClusterConfig{
-		Weight:         pps.Spec.CanaryPercent,
-		Name:           uniqueNameCanary,
-		ConnectTimeout: pps.Spec.Timeout,
-		EndpointConfig: &endpointConfigCanary,
-	}
+func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.RouteConfig {
+	clusterConfig := C.NewCluster(pps, false)
+	clusterConfigCanary := C.NewCluster(pps, true)
 
-	clusterConfigs := []*propsy.ClusterConfig{&clusterConfig}
+	clusterConfigs := []*propsy.ClusterConfig{clusterConfig}
 	if pps.Spec.CanaryService != "" {
-		clusterConfigs = append(clusterConfigs, &clusterConfigCanary)
+		clusterConfigs = append(clusterConfigs, clusterConfigCanary)
 	}
 
-	routeConfig := propsy.RouteConfig{
-		Name:     uniqueName,
+	return &propsy.RouteConfig{
+		Name:     propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Name),
 		Clusters: clusterConfigs,
 	}
+}
 
-	listenerConfig := &propsy.ListenerConfig{
+func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *propsy.ListenerConfig {
+	uniqueName := propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Name)
+	return &propsy.ListenerConfig{
 		Name:   uniqueName,
 		Listen: pps.Spec.Listen,
 		VirtualHosts: []*propsy.VirtualHost{{
 			Name:    uniqueName,
 			Domains: []string{"*"}, // TODO ?
-			Routes:  []*propsy.RouteConfig{&routeConfig},
+			Routes:  []*propsy.RouteConfig{C.NewRouteConfig(pps)},
 		}},
 	}
+}
 
-	C.ppsCache.RegisterEndpointSet(&endpointConfig, nodes)
-	if pps.Spec.CanaryService != "" {
-		C.ppsCache.RegisterEndpointSet(&endpointConfigCanary, nodes)
-	}
-
-	for node := range nodes {
-		nodes[node].AddListener(listenerConfig)
-	}
-
+func (C *ProPsyController) ResyncEndpoints(pps *propsyv1.ProPsyService) {
 	endpoints, err := C.endpointGetter.Endpoints(pps.Namespace).Get(pps.Spec.Service, v12.GetOptions{})
 	if err == nil {
 		C.EndpointAdded(endpoints)
@@ -251,6 +235,29 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 			C.EndpointAdded(endpointsCanary)
 		}
 	}
+}
+
+func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
+	// TODO support disabled flag
+	var nodes []*propsy.NodeConfig
+	for i := 0; i < len(pps.Spec.Nodes); i++ {
+		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
+		nodes = append(nodes, node)
+		logrus.Infof("Node: %p, %s", node, node.NodeName)
+	}
+
+	listenerConfig := C.NewListenerConfig(pps)
+
+	C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[0].EndpointConfig, nodes)
+	if pps.Spec.CanaryService != "" {
+		C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[1].EndpointConfig, nodes)
+	}
+
+	for node := range nodes {
+		nodes[node].AddListener(listenerConfig)
+	}
+
+	C.ResyncEndpoints(pps)
 
 	for node := range nodes {
 		logrus.Infof("Dispatching update to %s", nodes[node].NodeName)
@@ -263,10 +270,12 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 	for i := range pps.Spec.Nodes {
 		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
-		node.Free()
+		lis := node.FindListener(propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Name))
+		if lis != nil {
+			lis.Free()
+			propsy.RemoveFromEnvoy(node)
+		}
 	}
-
-	// TODO do we have some way to remove nodes from envoy apiserver?
 }
 
 func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1.ProPsyService) {
@@ -276,20 +285,32 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 		return
 	}
 
+	uniqueName := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Name)
+
 	if !reflect.DeepEqual(old.Spec.Nodes, new.Spec.Nodes) {
 		// TODO rework nodes.. bleh :P code below will crash on node change until this gets implemented
+		for nodeI := range old.Spec.Nodes {
+			C.ppsCache.GetOrCreateNode(old.Spec.Nodes[nodeI]).RemoveListener(uniqueName)
+		}
 	}
 
 	var newNodes []*propsy.NodeConfig
 	for i := 0; i < len(new.Spec.Nodes); i++ {
-		newNodes = append(newNodes, C.ppsCache.GetOrCreateNode(new.Spec.Nodes[i]))
+		node := C.ppsCache.GetOrCreateNode(new.Spec.Nodes[i])
+		newNodes = append(newNodes, node)
+		if !DoesListContain(old.Spec.Nodes, new.Spec.Nodes[i]) {
+			node.AddListener(C.NewListenerConfig(old)) // generate with old config so updates can work
+		}
 	}
 
-	uniqueName := propsy.GenerateUniqueEndpointName(new.Namespace, new.Name)
-	uniqueNameEndpointsNew := propsy.GenerateUniqueEndpointName(new.Namespace, new.Spec.Service)
-	uniqueNameEndpointsOld := propsy.GenerateUniqueEndpointName(new.Namespace, old.Spec.Service)
-	uniqueNameEndpointsCanaryNew := propsy.GenerateUniqueEndpointName(new.Namespace, new.Spec.CanaryService+CANARY_POSTFIX)
-	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(new.Namespace, old.Spec.CanaryService+CANARY_POSTFIX)
+	if len(newNodes) == 0 {
+		return // job done
+	}
+
+	uniqueNameEndpointsNew := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Spec.Service)
+	uniqueNameEndpointsOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.Service)
+	uniqueNameEndpointsCanaryNew := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Spec.CanaryService+CANARY_POSTFIX)
+	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.CanaryService+CANARY_POSTFIX)
 
 	if old.Spec.ServicePort != new.Spec.ServicePort {
 		for i := range newNodes {
@@ -325,53 +346,43 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 
 	}
 
+	if old.Spec.Timeout != new.Spec.Timeout {
+		for i := range newNodes {
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
+				FindCluster(uniqueNameEndpointsNew).ConnectTimeout = new.Spec.Timeout
+		}
+	}
+
 	if old.Spec.Percent != new.Spec.Percent {
 		for i := range newNodes {
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).FindCluster(uniqueNameEndpointsNew).Weight = new.Spec.Percent
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
+				FindCluster(uniqueNameEndpointsNew).Weight = new.Spec.Percent
 		}
 	}
 
 	if old.Spec.Service != new.Spec.Service {
 		// disconnect old services
-		endpointConfig := propsy.EndpointConfig{
-			Name:        uniqueNameEndpointsNew,
-			ServicePort: new.Spec.ServicePort,
-		}
-
 		for i := range newNodes {
 			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).RemoveCluster(uniqueNameEndpointsOld)
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(&propsy.ClusterConfig{
-				Name:           uniqueNameEndpointsNew,
-				Weight:         new.Spec.Percent,
-				ConnectTimeout: new.Spec.Timeout,
-				EndpointConfig: &endpointConfig,
-			})
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(C.NewCluster(new, false))
 
 		}
 
-		C.ppsCache.RegisterEndpointSet(&endpointConfig, newNodes)
+		C.ppsCache.RegisterEndpointSet(newNodes[0].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
+			FindCluster(uniqueNameEndpointsNew).EndpointConfig, newNodes)
 		C.ppsCache.RemoveEndpointSet(uniqueNameEndpointsOld, newNodes)
 	}
 
 	if old.Spec.CanaryService != new.Spec.CanaryService {
-		endpointConfigCanary := propsy.EndpointConfig{
-			Name:        uniqueNameEndpointsCanaryNew,
-			ServicePort: new.Spec.ServicePort,
-		}
-
 		for i := range newNodes {
 			if old.Spec.CanaryService != "" {
 				newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).RemoveCluster(uniqueNameEndpointsCanaryOld)
 			}
-			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(&propsy.ClusterConfig{
-				Name:           uniqueNameEndpointsCanaryNew,
-				Weight:         new.Spec.CanaryPercent,
-				ConnectTimeout: new.Spec.Timeout,
-				EndpointConfig: &endpointConfigCanary,
-			})
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(C.NewCluster(new, true))
 		}
 
-		C.ppsCache.RegisterEndpointSet(&endpointConfigCanary, newNodes)
+		C.ppsCache.RegisterEndpointSet(newNodes[0].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
+			FindCluster(uniqueNameEndpointsCanaryNew).EndpointConfig, newNodes)
 		if old.Spec.CanaryService != "" {
 			C.ppsCache.RemoveEndpointSet(uniqueNameEndpointsCanaryOld, newNodes)
 		}
@@ -383,6 +394,20 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 		}
 	}
 
-	// todo dispatch update
+	for i := range newNodes {
+		newNodes[i].Update()
+		if old.Spec.Service != new.Spec.Service {
+			C.ResyncEndpoints(new)
+		}
+	}
 
+}
+
+func DoesListContain(haystack []string, needle string) bool {
+	for i := range haystack {
+		if haystack[i] == needle {
+			return true
+		}
+	}
+	return false
 }

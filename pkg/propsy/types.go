@@ -74,7 +74,18 @@ func (N *NodeConfig) FindListener(name string) *ListenerConfig {
 		}
 	}
 
+	logrus.Debugf("Found no listener %s", name)
 	return nil
+}
+
+func (N *NodeConfig) RemoveListener(s string) {
+	for i := range N.Listeners {
+		if N.Listeners[i].Name == s {
+			N.Listeners[i] = N.Listeners[len(N.Listeners)-1]
+			N.Listeners = N.Listeners[:len(N.Listeners)-1]
+			return
+		}
+	}
 }
 
 func (L *VirtualHost) AddRoute(r *RouteConfig) {
@@ -86,6 +97,7 @@ func (L *VirtualHost) RemoveRoute(name string) {
 		if L.Routes[route].Name == name {
 			L.Routes[route] = L.Routes[len(L.Routes)-1]
 			L.Routes = L.Routes[:len(L.Routes)-1]
+			return
 		}
 	}
 }
@@ -97,6 +109,7 @@ func (L *VirtualHost) FindRoute(name string) *RouteConfig {
 		}
 	}
 
+	logrus.Debugf("Found no route %s", name)
 	return nil
 }
 
@@ -127,6 +140,7 @@ func (V *RouteConfig) FindCluster(name string) *ClusterConfig {
 		}
 	}
 
+	logrus.Debugf("Found no cluster %s", name)
 	return nil
 }
 
@@ -154,6 +168,7 @@ func (R *ListenerConfig) FindVHost(name string) *VirtualHost {
 		}
 	}
 
+	logrus.Debugf("Found no vhost %s", name)
 	return nil
 }
 
@@ -182,8 +197,8 @@ func (C *ClusterConfig) Free() {
 	C.EndpointConfig.Endpoints = map[*Locality][]*Endpoint{}
 }
 
-func GenerateUniqueEndpointName(namespace, name string) string {
-	return fmt.Sprintf("%s-%s", namespace, name)
+func GenerateUniqueEndpointName(locality *Locality, namespace, name string) string {
+	return fmt.Sprintf("%s-%s-%s", locality.Zone, namespace, name)
 }
 
 func (E *EndpointConfig) Clear() {

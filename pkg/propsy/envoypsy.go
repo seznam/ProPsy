@@ -215,3 +215,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 	snapshot := cache.NewSnapshot(time.Now().String(), nil, sendClusters, nil, sendListeners)
 	_ = snapshotCache.SetSnapshot(n.NodeName, snapshot)
 }
+
+func RemoveFromEnvoy(node *NodeConfig) {
+	snapshotCache.ClearSnapshot(node.NodeName)
+}
