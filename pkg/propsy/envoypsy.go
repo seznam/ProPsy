@@ -114,7 +114,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 
 					cluster := &v2.Cluster{
 						Name:           _cluster.Name,
-						ConnectTimeout: 2 * time.Second, // TODO configurable
+						ConnectTimeout: time.Duration(_cluster.ConnectTimeout) * time.Millisecond,
 						Type:           v2.Cluster_STATIC,
 						LoadAssignment: &v2.ClusterLoadAssignment{
 							ClusterName: _cluster.Name,

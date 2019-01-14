@@ -49,7 +49,7 @@ teste2e:
   - nohup /www/adm/etcd/bin/etcd --data-dir /tmp/etcd --name etcd-test >/tmp/log/etcd.log 2>&1 &
   - nohup /www/adm/kubernetes/bin/hyperkube apiserver --etcd-servers=http://localhost:2379 >/tmp/log/apiserver.log 2>&1 &
   - /bin/sh -c 'while [ true ]; do curl http://localhost:8080 >/dev/null 2>&1 && exit 0; echo "Not ready yet ... " ; sleep 3 ; done'
-  - /bin/sh -c 'for i in hack/test/stage0/*.yaml; do kubectl apply -f $i ; done'
+  - /bin/sh -c 'for i in deployment/kubernetes/*.yaml; do kubectl apply -f $i ; done'
   - nohup dist/propsy -zone test -cluster hack/test/kubeconfig.test.yaml:test &
   script:
   - /bin/sh -c 'for i in hack/test/stage1/*.sh; do echo ">>>>>> Running test $i" ; ./$i ; done'

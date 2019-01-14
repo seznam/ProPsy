@@ -200,14 +200,14 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 		Weight: pps.Spec.Percent,
 
 		Name:           uniqueName,
-		ConnectTimeout: 10, // TODO configurable
+		ConnectTimeout: pps.Spec.Timeout,
 		EndpointConfig: &endpointConfig,
 	}
 
 	clusterConfigCanary := propsy.ClusterConfig{
 		Weight:         pps.Spec.CanaryPercent,
 		Name:           uniqueNameCanary,
-		ConnectTimeout: 10,
+		ConnectTimeout: pps.Spec.Timeout,
 		EndpointConfig: &endpointConfigCanary,
 	}
 
@@ -343,7 +343,7 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(&propsy.ClusterConfig{
 				Name:           uniqueNameEndpointsNew,
 				Weight:         new.Spec.Percent,
-				ConnectTimeout: 10, // TODO configurable
+				ConnectTimeout: new.Spec.Timeout,
 				EndpointConfig: &endpointConfig,
 			})
 
@@ -366,7 +366,7 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(&propsy.ClusterConfig{
 				Name:           uniqueNameEndpointsCanaryNew,
 				Weight:         new.Spec.CanaryPercent,
-				ConnectTimeout: 10, // TODO configurable
+				ConnectTimeout: new.Spec.Timeout,
 				EndpointConfig: &endpointConfigCanary,
 			})
 		}

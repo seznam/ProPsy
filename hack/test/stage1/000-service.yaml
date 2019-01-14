@@ -11,4 +11,5 @@ spec:
   percent: 99
   service: kubernetes
   servicePort: 6443
+  timeout: 5000
 

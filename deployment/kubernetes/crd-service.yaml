@@ -20,7 +20,7 @@ spec:
     openAPIV3Schema:
       properties:
         spec:
-          required: ["service", "nodes", "percent", "servicePort", "listen"]
+          required: ["service", "nodes", "percent", "servicePort", "listen", "timeout"]
           properties:
             listen:
               type: string
@@ -46,6 +46,10 @@ spec:
               type: integer
               minimum: 0
               maximum: 100
+            timeout:
+              type: integer
+              minimum: 1
+              maximum: 60000
   additionalPrinterColumns:
   - name: Service
     type: string
@@ -59,4 +63,8 @@ spec:
     type: integer
     description: How much percent of traffic will go into this service in this locality
     JSONPath: .spec.percent
+  - name: Timeout
+    type: integer
+    description: Connect Timeout to upstream endpoints
+    JSONPath: .spec.service
 
