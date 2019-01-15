@@ -18,15 +18,15 @@ func TestNodeConfig(T *testing.T) {
 		Endpoints:   map[*Locality][]*Endpoint{},
 	}})
 
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint(locality, "1.2.3.4", 10)
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint(locality, "5.6.7.8", 11)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("5.6.7.8", 11)
 
-	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints[locality]) != 2 {
+	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 2 {
 		log.Fatalf("There is a wrong number of endpoints!")
 	}
 
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.RemoveEndpoint(locality, "5.6.7.8")
-	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints[locality]) != 1 {
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.RemoveEndpoint("5.6.7.8")
+	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 1 {
 		log.Fatalf("There is a wrong number of endpoints!")
 	}
 
@@ -62,16 +62,16 @@ func TestNodeConfig(T *testing.T) {
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "foobar", Weight: 5, ConnectTimeout: 1, EndpointConfig: &EndpointConfig{
 		Name:        "test",
 		ServicePort: 123,
-		Endpoints:   map[*Locality][]*Endpoint{},
+		Endpoints:   []*Endpoint{},
 	}})
 
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint(locality, "1.2.3.4", 10)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10)
 
-	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint(locality, "1.2.3.4") == nil {
+	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint("1.2.3.4") == nil {
 		log.Fatalf("Couldn't find endpoint!")
 	}
 
-	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint(locality, "2.3.4.5") != nil {
+	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint("2.3.4.5") != nil {
 		log.Fatalf("Found a non-existing endpoint!")
 	}
 
