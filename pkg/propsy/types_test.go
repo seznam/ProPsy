@@ -6,7 +6,6 @@ import (
 )
 
 func TestNodeConfig(T *testing.T) {
-	locality := &Locality{Zone: "test"}
 	node := NodeConfig{NodeName: "foobar"}
 	node.AddListener(&ListenerConfig{Name: "foobar"})
 	node.FindListener("foobar").VirtualHosts = append(node.FindListener("foobar").VirtualHosts,
@@ -15,7 +14,7 @@ func TestNodeConfig(T *testing.T) {
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "foobar", Weight: 5, ConnectTimeout: 1, EndpointConfig: &EndpointConfig{
 		Name:        "test",
 		ServicePort: 123,
-		Endpoints:   map[*Locality][]*Endpoint{},
+		Endpoints:   []*Endpoint{},
 	}})
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10)
