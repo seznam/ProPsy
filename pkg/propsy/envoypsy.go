@@ -1,6 +1,7 @@
 package propsy
 
 import (
+	"flag"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -37,6 +38,8 @@ func (h Hasher) ID(node *core.Node) string {
 	return node.Id
 }
 
+var LocalZone string
+
 func init() {
 	snapshotCache = cache.NewSnapshotCache(false, Hasher{}, nil)
 	server = xds.NewServer(snapshotCache, nil)
@@ -48,6 +51,8 @@ func init() {
 	api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
 
 	reflection.Register(grpcServer)
+
+	flag.StringVar(&LocalZone, "zone", "", "Local zone")
 }
 
 func GetGRPCServer() *grpc.Server {
@@ -57,6 +62,12 @@ func GetGRPCServer() *grpc.Server {
 func UInt32FromInteger(val int) *types.UInt32Value {
 	return &types.UInt32Value{
 		Value: uint32(val),
+	}
+}
+
+func UInt64FromInteger(val int) *types.UInt64Value {
+	return &types.UInt64Value{
+		Value: uint64(val),
 	}
 }
 
@@ -75,42 +86,93 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 			for r := range _vhost.Routes {
 				_route := _vhost.Routes[r]
 				routedClusters := []*route.WeightedCluster_ClusterWeight{}
+
+				// find the total sum of weights that are not our cluster and our clusters as well
+				localZoneWeight := 0
+				otherZoneWeight := 0
+				connectTimeout := 0
+
 				for c := range _route.Clusters {
 					_cluster := _route.Clusters[c]
+					if _cluster.EndpointConfig.Locality.Zone == LocalZone {
+						localZoneWeight = _cluster.Weight
+						connectTimeout = _cluster.ConnectTimeout
+					} else {
+						otherZoneWeight += _cluster.Weight
+					}
+				}
+
+				// do magic with weights
+				if localZoneWeight >= 100 {
+					otherZoneWeight = 0
+					localZoneWeight = 100
+				} else {
+					otherZoneWeight = 100 - localZoneWeight
+				}
+
+				totalWeight := localZoneWeight + otherZoneWeight*(len(_route.Clusters)-1)
+				logrus.Debugf("total: %d, local: %d, other: %d, clusters: %d", totalWeight, localZoneWeight, otherZoneWeight, len(_route.Clusters))
+				for i := range _route.Clusters {
+					logrus.Debugf("%d: %s", i, _route.Clusters[i].Name)
+				}
+				// first setup local-zone cluster
+				routedClusters = append(routedClusters, &route.WeightedCluster_ClusterWeight{
+					Weight: UInt32FromInteger(localZoneWeight),
+					Name:   _vhost.Name,
+				})
+
+				endpointsAll := []endpoint.LocalityLbEndpoints{}
+				for c := range _route.Clusters {
+					_locality := _route.Clusters[c].EndpointConfig.Locality
+
+					priority := 1
+					if _locality.Zone == LocalZone {
+						priority = 0
+					}
+					endpointsAll = append(endpointsAll, _route.Clusters[c].EndpointConfig.ToEnvoy(priority, 1))
+				}
+
+				cluster := &v2.Cluster{
+					Name:           _vhost.Name,
+					ConnectTimeout: time.Duration(connectTimeout) * time.Millisecond,
+					Type:           v2.Cluster_STATIC,
+					LoadAssignment: &v2.ClusterLoadAssignment{
+						ClusterName: _vhost.Name,
+						Endpoints:   endpointsAll,
+					},
+					CommonLbConfig: &api.Cluster_CommonLbConfig{
+						LocalityConfigSpecifier: &api.Cluster_CommonLbConfig_ZoneAwareLbConfig_{
+							ZoneAwareLbConfig: &api.Cluster_CommonLbConfig_ZoneAwareLbConfig{
+								MinClusterSize: UInt64FromInteger(1), // TODO
+							},
+						},
+					},
+				}
+
+				sendClusters = append(sendClusters, cluster)
+
+				// now the others
+				for c := range _route.Clusters {
+					_cluster := _route.Clusters[c]
+					if _cluster.EndpointConfig.Locality.Zone == LocalZone {
+						continue
+					}
 					routedClusters = append(routedClusters, &route.WeightedCluster_ClusterWeight{
 						Name:   _cluster.Name,
-						Weight: UInt32FromInteger(_cluster.Weight),
+						Weight: UInt32FromInteger(otherZoneWeight),
 					})
 
 					localityEndpoints := []endpoint.LocalityLbEndpoints{}
 
-					for _locality, _endpoints := range _cluster.EndpointConfig.Endpoints {
-						endpoints := []endpoint.LbEndpoint{}
-						for i := range _endpoints {
-							endpoints = append(endpoints, endpoint.LbEndpoint{
-								Endpoint: &endpoint.Endpoint{
-									Address: &core.Address{
-										Address: &core.Address_SocketAddress{
-											SocketAddress: &core.SocketAddress{
-												Address: _endpoints[i].Host,
-												PortSpecifier: &core.SocketAddress_PortValue{
-													PortValue: uint32(_cluster.EndpointConfig.ServicePort),
-												},
-											},
-										},
-									},
-								},
-							})
-						}
-						localityEndpoints = append(localityEndpoints, endpoint.LocalityLbEndpoints{
-							Locality: &core.Locality{
-								Zone:    _locality.Zone,
-								Region:  "Seznam",
-								SubZone: "admins5", // todo hahaha?
-							},
-							LbEndpoints: endpoints,
-						})
+					endpoints := []endpoint.LbEndpoint{}
+
+					for i := range _cluster.EndpointConfig.Endpoints {
+						_endpoint := _cluster.EndpointConfig.Endpoints[i]
+
+						endpoints = append(endpoints, _endpoint.ToEnvoy(_cluster.EndpointConfig.ServicePort))
 					}
+
+					localityEndpoints = append(localityEndpoints, _cluster.EndpointConfig.ToEnvoy(0, 1))
 
 					cluster := &v2.Cluster{
 						Name:           _cluster.Name,
@@ -119,6 +181,13 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 						LoadAssignment: &v2.ClusterLoadAssignment{
 							ClusterName: _cluster.Name,
 							Endpoints:   localityEndpoints,
+						},
+						CommonLbConfig: &api.Cluster_CommonLbConfig{
+							LocalityConfigSpecifier: &api.Cluster_CommonLbConfig_ZoneAwareLbConfig_{
+								ZoneAwareLbConfig: &api.Cluster_CommonLbConfig_ZoneAwareLbConfig{
+									MinClusterSize: UInt64FromInteger(1), // TODO
+								},
+							},
 						},
 					}
 
@@ -135,7 +204,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 							ClusterSpecifier: &route.RouteAction_WeightedClusters{
 								WeightedClusters: &route.WeightedCluster{
 									Clusters:    routedClusters,
-									TotalWeight: UInt32FromInteger(_route.TotalWeight()),
+									TotalWeight: UInt32FromInteger(totalWeight),
 								},
 							},
 						},

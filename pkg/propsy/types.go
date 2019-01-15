@@ -41,7 +41,8 @@ type EndpointConfig struct {
 	Lock        sync.Mutex
 	Name        string
 	ServicePort int // used only internally
-	Endpoints   map[*Locality][]*Endpoint
+	Locality    *Locality
+	Endpoints   []*Endpoint
 }
 
 type Endpoint struct {
@@ -63,8 +64,12 @@ func (N *NodeConfig) Free() {
 }
 
 func (N *NodeConfig) AddListener(l *ListenerConfig) {
-	logrus.Debugf("Adding a listener to node: %s", N.NodeName)
-	N.Listeners = append(N.Listeners, l)
+	logrus.Debugf("Adding a listener to node %s: %s", N.NodeName, l.Name)
+	if N.FindListener(l.Name) != nil {
+		N.FindListener(l.Name).AddVHosts(l.VirtualHosts)
+	} else {
+		N.Listeners = append(N.Listeners, l)
+	}
 }
 
 func (N *NodeConfig) FindListener(name string) *ListenerConfig {
@@ -91,7 +96,11 @@ func (N *NodeConfig) RemoveListener(s string) {
 }
 
 func (L *VirtualHost) AddRoute(r *RouteConfig) {
-	L.Routes = append(L.Routes, r)
+	if L.FindRoute(r.Name) != nil {
+		L.FindRoute(r.Name).AddClusters(r.Clusters)
+	} else {
+		L.Routes = append(L.Routes, r)
+	}
 }
 
 func (L *VirtualHost) RemoveRoute(name string) {
@@ -121,8 +130,20 @@ func (L *VirtualHost) Free() {
 	}
 }
 
+func (L *VirtualHost) AddRoutes(configs []*RouteConfig) {
+	for i := range configs {
+		L.AddRoute(configs[i])
+	}
+}
+
 func (V *RouteConfig) AddCluster(c *ClusterConfig) {
-	V.Clusters = append(V.Clusters, c)
+	if i := V.FindCluster(c.Name); i != nil {
+		for ep := range c.EndpointConfig.Endpoints {
+			i.EndpointConfig.AddEndpoint(c.EndpointConfig.Endpoints[ep].Host, c.EndpointConfig.Endpoints[ep].Weight)
+		}
+	} else {
+		V.Clusters = append(V.Clusters, c)
+	}
 }
 
 func (V *RouteConfig) RemoveCluster(name string) {
@@ -163,6 +184,12 @@ func (R *RouteConfig) TotalWeight() int {
 	return totalWeight
 }
 
+func (V *RouteConfig) AddClusters(configs []*ClusterConfig) {
+	for i := range configs {
+		V.AddCluster(configs[i])
+	}
+}
+
 func (R *ListenerConfig) FindVHost(name string) *VirtualHost {
 	for i := range R.VirtualHosts {
 		if R.VirtualHosts[i].Name == name {
@@ -191,66 +218,65 @@ func (L *ListenerConfig) Free() {
 	L.VirtualHosts = nil
 }
 
+func (R *ListenerConfig) AddVHosts(hosts []*VirtualHost) {
+	for i := range hosts {
+		R.AddVHost(hosts[i])
+	}
+}
+
+func (R *ListenerConfig) AddVHost(host *VirtualHost) {
+	if R.FindVHost(host.Name) != nil {
+		R.FindVHost(host.Name).AddRoutes(host.Routes)
+	} else {
+		R.VirtualHosts = append(R.VirtualHosts, host)
+	}
+}
+
 func (C *ClusterConfig) Free() {
 	for i := range C.EndpointConfig.Endpoints {
 		C.EndpointConfig.Endpoints[i] = nil
 	}
 
-	C.EndpointConfig.Endpoints = map[*Locality][]*Endpoint{}
+	C.EndpointConfig.Endpoints = []*Endpoint{}
 }
 
 func GenerateUniqueEndpointName(locality *Locality, namespace, name string) string {
 	return fmt.Sprintf("%s-%s-%s", locality.Zone, namespace, name)
 }
 
+func GenerateUniqConfigName(namespace, name string) string {
+	return fmt.Sprintf("%s-%s", namespace, name)
+}
+
 func (E *EndpointConfig) Clear() {
-	for locality := range E.Endpoints {
-		delete(E.Endpoints, locality)
-	}
+	E.Endpoints = []*Endpoint{}
 }
 
-func (E *EndpointConfig) ClearLocality(locality *Locality) {
-	if _, ok := E.Endpoints[locality]; ok {
-		E.Endpoints[locality] = nil
-	}
+func (E *EndpointConfig) AddEndpoint(host string, weight int) {
+	E.RemoveEndpoint(host) // force remove if it exists to avoid duplicating
+	E.Endpoints = append(E.Endpoints, &Endpoint{Host: host, Weight: weight})
 }
 
-func (E *EndpointConfig) AddEndpoint(locality *Locality, host string, weight int) {
-	E.RemoveEndpoint(locality, host) // force remove if it exists to avoid duplicating
-	if _, ok := E.Endpoints[locality]; ok {
-		E.Endpoints[locality] = append(E.Endpoints[locality], &Endpoint{Host: host, Weight: weight})
-	} else {
-		E.Endpoints[locality] = []*Endpoint{{
-			Host:   host,
-			Weight: weight,
-		}}
-	}
-}
-
-func (E *EndpointConfig) RemoveEndpoint(locality *Locality, host string) {
-	if _, ok := E.Endpoints[locality]; ok {
-		removalI := -1
-		for i := 0; i < len(E.Endpoints[locality]); i++ {
-			if E.Endpoints[locality][i].Host == host {
-				removalI = i
-				break
-			}
-		}
-
-		if removalI != -1 { // never remove from an array you're iterating over, although here it may be safe since we break immediately?
-			logrus.Debugf("Removing endpoint %i (host: %s)", removalI, host)
-			E.Endpoints[locality][removalI] = E.Endpoints[locality][len(E.Endpoints[locality])-1]
-			E.Endpoints[locality] = E.Endpoints[locality][:len(E.Endpoints[locality])-1]
+func (E *EndpointConfig) RemoveEndpoint(host string) {
+	removalI := -1
+	for i := 0; i < len(E.Endpoints); i++ {
+		if E.Endpoints[i].Host == host {
+			removalI = i
+			break
 		}
 	}
+
+	if removalI != -1 { // never remove from an array you're iterating over, although here it may be safe since we break immediately?
+		logrus.Debugf("Removing endpoint %i (host: %s)", removalI, host)
+		E.Endpoints[removalI] = E.Endpoints[len(E.Endpoints)-1]
+		E.Endpoints = E.Endpoints[:len(E.Endpoints)-1]
+	}
 }
 
-func (E *EndpointConfig) GetEndpoint(locality *Locality, host string) *Endpoint {
-	if _, ok := E.Endpoints[locality]; ok {
-		for i := 0; i < len(E.Endpoints[locality]); i++ {
-			if E.Endpoints[locality][i].Host == host {
-				return E.Endpoints[locality][i]
-			}
+func (E *EndpointConfig) GetEndpoint(host string) *Endpoint {
+	for i := 0; i < len(E.Endpoints); i++ {
+		if E.Endpoints[i].Host == host {
+			return E.Endpoints[i]
 		}
 	}
 

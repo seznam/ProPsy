@@ -41,11 +41,9 @@ func (i ConnectedClusters) Set(flag string) error {
 }
 
 var connectedClusters ConnectedClusters
-var localZone string
 var debugMode bool
 
 func init() {
-	flag.StringVar(&localZone, "zone", "", "Local zone")
 	flag.Var(&connectedClusters, "cluster", "Kubernetes cluster map kubeconfigPath:zone")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug output")
 
