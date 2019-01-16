@@ -12,5 +12,5 @@ coverage:
 	go test -cover -coverprofile=/tmp/propsy-cover.out ./...
 	go tool cover -html=/tmp/propsy-cover.out
 
-alias:
-	@echo alias go='docker run -u `id -u`:`id -g` --rm -ti -e XDG_CACHE_HOME=/go/src/propsy/.godir -e GO111MODULE=on -v `pwd`:/go/src/propsy -w /go/src/propsy golang:1.11-stretch go'
+build:
+	CGO_ENABLED=0 go build -ldflags='-s -w -extldflags "-static"'

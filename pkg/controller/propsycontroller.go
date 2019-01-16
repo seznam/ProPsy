@@ -174,7 +174,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 	var endpointName string
 	var percent int
 	if isCanary {
-		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService)
+		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService+CANARY_POSTFIX)
 		percent = pps.Spec.CanaryPercent
 	} else {
 		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service)
@@ -193,6 +193,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 		Name:           endpointName,
 		Weight:         percent,
 		EndpointConfig: &endpointConfig,
+		IsCanary:       isCanary,
 	}
 }
 
@@ -345,10 +346,11 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 			if old.Spec.CanaryService != "" {
 				newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).RemoveCluster(uniqueNameEndpointsCanaryOld)
 			}
+			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).AddCluster(C.NewCluster(new, true))
 		}
 
 		C.ppsCache.RegisterEndpointSet(newNodes[0].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
-			FindCluster(uniqueName).EndpointConfig, newNodes)
+			FindCluster(uniqueNameEndpointsCanaryNew).EndpointConfig, newNodes)
 		if old.Spec.CanaryService != "" {
 			C.ppsCache.RemoveEndpointSet(uniqueNameEndpointsCanaryOld, newNodes)
 		}

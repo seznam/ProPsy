@@ -35,6 +35,7 @@ type ClusterConfig struct {
 	ConnectTimeout int
 	EndpointConfig *EndpointConfig
 	Weight         int
+	IsCanary       bool
 }
 
 type EndpointConfig struct {

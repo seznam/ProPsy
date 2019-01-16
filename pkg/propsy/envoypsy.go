@@ -90,15 +90,20 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				// find the total sum of weights that are not our cluster and our clusters as well
 				localZoneWeight := 0
 				otherZoneWeight := 0
+				canariesWeight := 0
 				connectTimeout := 0
+				otherZoneCount := 0
 
 				for c := range _route.Clusters {
 					_cluster := _route.Clusters[c]
-					if _cluster.EndpointConfig.Locality.Zone == LocalZone {
+					if _cluster.EndpointConfig.Locality.Zone == LocalZone && !_cluster.IsCanary {
 						localZoneWeight = _cluster.Weight
 						connectTimeout = _cluster.ConnectTimeout
-					} else {
+					} else if ! _cluster.IsCanary {
 						otherZoneWeight += _cluster.Weight
+						otherZoneCount++
+					} else if _cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone == LocalZone {
+						canariesWeight += _cluster.Weight // should be no more than one
 					}
 				}
 
@@ -107,10 +112,10 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 					otherZoneWeight = 0
 					localZoneWeight = 100
 				} else {
-					otherZoneWeight = 100 - localZoneWeight
+					otherZoneWeight = 100 - localZoneWeight // todo change the maths to be an actual percentage of the rest
 				}
 
-				totalWeight := localZoneWeight + otherZoneWeight*(len(_route.Clusters)-1)
+				totalWeight := localZoneWeight + otherZoneCount * otherZoneWeight + canariesWeight // canaries are separated
 				logrus.Debugf("total: %d, local: %d, other: %d, clusters: %d", totalWeight, localZoneWeight, otherZoneWeight, len(_route.Clusters))
 				for i := range _route.Clusters {
 					logrus.Debugf("%d: %s", i, _route.Clusters[i].Name)
@@ -124,6 +129,10 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				endpointsAll := []endpoint.LocalityLbEndpoints{}
 				for c := range _route.Clusters {
 					_locality := _route.Clusters[c].EndpointConfig.Locality
+
+					if _route.Clusters[c].IsCanary {
+						continue
+					}
 
 					priority := 1
 					if _locality.Zone == LocalZone {
@@ -154,12 +163,23 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				// now the others
 				for c := range _route.Clusters {
 					_cluster := _route.Clusters[c]
-					if _cluster.EndpointConfig.Locality.Zone == LocalZone {
-						continue
+					logrus.Debugf("Adding cluster to the cluster set: %s, %b, %s == %s", _cluster.Name, _cluster.IsCanary, _cluster.EndpointConfig.Locality.Zone, LocalZone)
+					if _cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone != LocalZone  {
+						logrus.Debugf(".. Skipping!")
+						continue // skip canaries of other zones
+					}
+					if !_cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone == LocalZone {
+						logrus.Debugf("... Skipping too!")
+						continue // skip local zones
+					}
+
+					weight := otherZoneWeight
+					if _cluster.IsCanary {
+						weight = canariesWeight
 					}
 					routedClusters = append(routedClusters, &route.WeightedCluster_ClusterWeight{
 						Name:   _cluster.Name,
-						Weight: UInt32FromInteger(otherZoneWeight),
+						Weight: UInt32FromInteger(weight),
 					})
 
 					localityEndpoints := []endpoint.LocalityLbEndpoints{}

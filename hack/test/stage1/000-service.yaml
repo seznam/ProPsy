@@ -12,4 +12,6 @@ spec:
   service: kubernetes
   servicePort: 6443
   timeout: 5000
+  canaryService: test
+  canaryPercent: 5
 
