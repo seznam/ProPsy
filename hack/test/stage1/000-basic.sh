@@ -7,6 +7,7 @@ echo "PPS: "
 kubectl get pps --all-namespaces -o wide
 echo "-----"
 kubectl apply -f hack/test/stage1/000-service.yaml
+sleep 1 # sometimes takes a second to process and re-fetch endpoints
 
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
 test_value "Cluster name" resources[0].loadAssignment.clusterName default-test
@@ -18,6 +19,7 @@ test_value "Listen port" resources[0].address.socketAddress.portValue 6444
 test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_config.virtual_hosts[0].routes[0].route.weighted_clusters.total_weight 104
 
 kubectl apply -f hack/test/stage1/000-service-updated.yaml
+sleep 1 # sometimes takes a second to process and re-fetch endpoints
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
 test_value "Timeout" resources[0].connectTimeout "6s"
 
@@ -27,6 +29,7 @@ test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_c
 
 # test rollback to the original values to check service re-registration
 kubectl apply -f hack/test/stage1/000-service.yaml
+sleep 1 # sometimes takes a second to process and re-fetch endpoints
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
 test_value "Cluster name" resources[0].loadAssignment.clusterName default-test
 test_value "Endpoint port" resources[0].loadAssignment.endpoints[0].lbEndpoints[0].endpoint.address.socketAddress.portValue 6443

@@ -354,6 +354,13 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 		if old.Spec.CanaryService != "" {
 			C.ppsCache.RemoveEndpointSet(uniqueNameEndpointsCanaryOld, newNodes)
 		}
+
+		endpoints, err := C.endpointGetter.Endpoints(new.Namespace).Get(new.Spec.CanaryService, v12.GetOptions{})
+		if err != nil {
+			copied := endpoints.DeepCopy()
+			copied.Annotations = map[string]string{"test": "copied"} // force change
+			C.EndpointChanged(copied, endpoints)
+		}
 	}
 
 	if old.Spec.ServicePort != new.Spec.ServicePort {

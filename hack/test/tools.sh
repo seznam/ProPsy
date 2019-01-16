@@ -20,7 +20,7 @@ test_value() {
     echo -n "Testing $name: "
     found=`cat /tmp/test.log | jq ".${key}" -r`
     if [ x"${found}" != x"${value}" ]; then
-        echo "Failed: have ${found}"
+        echo "Failed: have ${found}, was expecting ${value}"
         exit 1
     else
         echo "ok"
