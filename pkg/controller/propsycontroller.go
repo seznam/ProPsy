@@ -123,14 +123,13 @@ func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
 		return
 	}
 
-	for ie := range ecs {
-		// it seems to be a tracked service. Feed in all the endpoints...
-		for i := 0; i < len(endpoint.Subsets); i++ {
-			for j := 0; j < len(endpoint.Subsets[i].Addresses); j++ {
-				ecs[ie].AddEndpoint(endpoint.Subsets[i].Addresses[j].IP, STATIC_WEIGHT_TODO)
-			}
+	// it seems to be a tracked service. Feed in all the endpoints...
+	for i := 0; i < len(endpoint.Subsets); i++ {
+		for j := 0; j < len(endpoint.Subsets[i].Addresses); j++ {
+			ecs.AddEndpoint(endpoint.Subsets[i].Addresses[j].IP, STATIC_WEIGHT_TODO)
 		}
 	}
+
 
 	for i := range nodes {
 		nodes[i].Update()
@@ -140,9 +139,10 @@ func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
 func (C *ProPsyController) EndpointRemoved(endpoint *v1.Endpoints) {
 	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
-	for i := range ecs {
-		ecs[i].Endpoints = []*propsy.Endpoint{}
+	if ecs == nil {
+		return
 	}
+	ecs.Endpoints = []*propsy.Endpoint{}
 
 	for i := range nodes {
 		nodes[i].Update()
@@ -156,14 +156,16 @@ func (C *ProPsyController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoints)
 
 	name := propsy.GenerateUniqueEndpointName(C.locality, old.Namespace, old.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
+	if ecs == nil {
+		return
+	}
 
 	C.ppsCache.MutexEndpoints.Lock() // lock to prevent other localities resetting before we fill in ourselves to avoid sending config with empty data
 	defer C.ppsCache.MutexEndpoints.Unlock()
 
-	for i := range ecs {
-		ecs[i].Endpoints = []*propsy.Endpoint{} // clear the existing from this locality. do NOT update tracked nodes until we feed the new ones in!!
-		C.EndpointAdded(new)                    // feed in new ones
-	}
+	ecs.Endpoints = []*propsy.Endpoint{} // clear the existing from this locality. do NOT update tracked nodes until we feed the new ones in!!
+	C.EndpointAdded(new)                    // feed in new ones
+
 
 	for j := range nodes {
 		nodes[j].Update()

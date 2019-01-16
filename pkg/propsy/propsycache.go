@@ -16,7 +16,7 @@ type ProPsyCache struct {
 	nodeConfigs map[string]*NodeConfig
 
 	// mapped by endpoint key
-	endpointConfigsByName map[string][]*EndpointConfig
+	endpointConfigsByName map[string]*EndpointConfig
 	endpointNodes         map[string][]*NodeConfig
 
 	mu             sync.Mutex
@@ -27,7 +27,7 @@ func NewProPsyCache() *ProPsyCache {
 	cache := ProPsyCache{
 		queue:                 workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		nodeConfigs:           map[string]*NodeConfig{},
-		endpointConfigsByName: map[string][]*EndpointConfig{},
+		endpointConfigsByName: map[string]*EndpointConfig{},
 		endpointNodes:         map[string][]*NodeConfig{},
 	}
 
@@ -63,7 +63,7 @@ func (P *ProPsyCache) processQueueItem() bool {
 	return true
 }
 
-func (P *ProPsyCache) GetEndpointSetByEndpoint(endpointName string) ([]*EndpointConfig, []*NodeConfig) {
+func (P *ProPsyCache) GetEndpointSetByEndpoint(endpointName string) (*EndpointConfig, []*NodeConfig) {
 	if ecs, ok := P.endpointConfigsByName[endpointName]; ok {
 		return ecs, P.endpointNodes[endpointName]
 	}
@@ -75,13 +75,12 @@ func (P *ProPsyCache) RegisterEndpointSet(cfg *EndpointConfig, nodes []*NodeConf
 	P.mu.Lock()
 	defer P.mu.Unlock()
 
-	if _, ok := P.endpointConfigsByName[cfg.Name]; ok {
-		P.endpointConfigsByName[cfg.Name] = append(P.endpointConfigsByName[cfg.Name], cfg)
+	if _, ok := P.endpointNodes[cfg.Name]; ok {
 		P.endpointNodes[cfg.Name] = append(P.endpointNodes[cfg.Name], nodes...)
 	} else {
-		P.endpointConfigsByName[cfg.Name] = []*EndpointConfig{cfg}
 		P.endpointNodes[cfg.Name] = nodes
 	}
+	P.endpointConfigsByName[cfg.Name] = cfg
 }
 
 func (P *ProPsyCache) Cleanup() {
@@ -126,6 +125,8 @@ func (P *ProPsyCache) RemoveEndpointSet(s string, nodes []*NodeConfig) {
 	}
 
 	P.endpointNodes[s] = P.endpointNodes[s][:len(P.endpointNodes[s])-removed]
+
+	delete(P.endpointConfigsByName, s)
 }
 
 func (P *ProPsyCache) DumpNodes() {

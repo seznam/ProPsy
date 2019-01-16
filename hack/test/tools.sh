@@ -18,7 +18,7 @@ test_value() {
     value=$3
 
     echo -n "Testing $name: "
-    found=`cat /tmp/test.log | jq ".${key}" -r`
+    found=`cat /tmp/test.log | jq -S ".${key}" -r | head -n 1` # todo should check all lines
     if [ x"${found}" != x"${value}" ]; then
         echo "Failed: have ${found}, was expecting ${value}"
         exit 1
