@@ -182,17 +182,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 						Weight: UInt32FromInteger(weight),
 					})
 
-					localityEndpoints := []endpoint.LocalityLbEndpoints{}
-
-					endpoints := []endpoint.LbEndpoint{}
-
-					for i := range _cluster.EndpointConfig.Endpoints {
-						_endpoint := _cluster.EndpointConfig.Endpoints[i]
-
-						endpoints = append(endpoints, _endpoint.ToEnvoy(_cluster.EndpointConfig.ServicePort))
-					}
-
-					localityEndpoints = append(localityEndpoints, _cluster.EndpointConfig.ToEnvoy(0, 1))
+					localityEndpoints := []endpoint.LocalityLbEndpoints{_cluster.EndpointConfig.ToEnvoy(0, 1)}
 
 					cluster := &v2.Cluster{
 						Name:           _cluster.Name,
