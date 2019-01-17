@@ -10,8 +10,9 @@ kubectl apply -f hack/test/stage1/000-service.yaml
 sleep 1 # sometimes takes a second to process and re-fetch endpoints
 
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
-test_value "cluster names" resources[].loadAssignment.clusterName default-test*test-default-test
-test_value "Endpoint port" resources[].loadAssignment.endpoints[0].lbEndpoints[0].endpoint.address.socketAddress.portValue 6443*null
+test_value "cluster names" resources[].name default-test*test-default-test
+test_value "EDS Clusters" resources[].edsClusterConfig.edsConfig.apiConfigSource.grpcServices[0].envoyGrpc.clusterName xds_cluster*xds_cluster
+test_value "EDS Cluster Names" resources[].edsClusterConfig.serviceName default-test*test-default-test
 test_value "Timeout" resources[0].connectTimeout 5s
 
 call_grpc envoy.api.v2.ListenerDiscoveryService/FetchListeners
@@ -21,6 +22,7 @@ test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_c
 kubectl apply -f hack/test/stage1/000-service-updated.yaml
 sleep 1 # sometimes takes a second to process and re-fetch endpoints
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
+test_value "EDS Cluster Names" resources[].edsClusterConfig.serviceName default-test*test-default-testt
 test_value "Timeout" resources[0].connectTimeout "6s"
 
 call_grpc envoy.api.v2.ListenerDiscoveryService/FetchListeners
@@ -31,8 +33,11 @@ test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_c
 kubectl apply -f hack/test/stage1/000-service.yaml
 sleep 1 # sometimes takes a second to process and re-fetch endpoints
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
-test_value "Cluster name" resources[].loadAssignment.clusterName default-test*test-default-test
-test_value "Endpoint port" resources[].loadAssignment.endpoints[0].lbEndpoints[0].endpoint.address.socketAddress.portValue 6443*null
+test_value "cluster names" resources[].name default-test*test-default-test
+test_value "EDS Clusters" resources[].edsClusterConfig.edsConfig.apiConfigSource.grpcServices[0].envoyGrpc.clusterName xds_cluster*xds_cluster
+test_value "EDS Cluster Names" resources[].edsClusterConfig.serviceName default-test*test-default-test
 test_value "Timeout" resources[0].connectTimeout "5s"
 
+call_grpc envoy.api.v2.EndpointDiscoveryService/FetchEndpoints
+test_value "EDS discovered port" resources[].endpoints[].lbEndpoints[]?.endpoint.address.socketAddress.portValue 6443
 exit 0
