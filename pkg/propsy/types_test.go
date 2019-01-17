@@ -17,8 +17,8 @@ func TestNodeConfig(T *testing.T) {
 		Endpoints:   []*Endpoint{},
 	}})
 
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10)
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("5.6.7.8", 11)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10, true)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("5.6.7.8", 11, true)
 
 	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 2 {
 		log.Fatalf("There is a wrong number of endpoints!")
@@ -64,7 +64,7 @@ func TestNodeConfig(T *testing.T) {
 		Endpoints:   []*Endpoint{},
 	}})
 
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10, true)
 
 	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint("1.2.3.4") == nil {
 		log.Fatalf("Couldn't find endpoint!")
