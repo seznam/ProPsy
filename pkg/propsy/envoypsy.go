@@ -141,13 +141,31 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 					endpointsAll = append(endpointsAll, _route.Clusters[c].EndpointConfig.ToEnvoy(priority, 1))
 				}
 
+				sendEndpoints = append(sendEndpoints, &v2.ClusterLoadAssignment{
+					Endpoints: endpointsAll,
+					ClusterName: _vhost.Name,
+				})
+
 				cluster := &v2.Cluster{
 					Name:           _vhost.Name,
 					ConnectTimeout: time.Duration(connectTimeout) * time.Millisecond,
-					Type:           v2.Cluster_STATIC,
-					LoadAssignment: &v2.ClusterLoadAssignment{
-						ClusterName: _vhost.Name,
-						Endpoints:   endpointsAll,
+					Type:           v2.Cluster_EDS,
+					EdsClusterConfig: &api.Cluster_EdsClusterConfig{
+						ServiceName: _vhost.Name,
+						EdsConfig: &core.ConfigSource{
+							ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
+								ApiConfigSource: &core.ApiConfigSource{
+									ApiType: core.ApiConfigSource_GRPC,
+									GrpcServices: []*core.GrpcService{{
+										TargetSpecifier: &core.GrpcService_EnvoyGrpc_ {
+											EnvoyGrpc: &core.GrpcService_EnvoyGrpc {
+												ClusterName: "xds_cluster",
+											},
+										},
+									}},
+								},
+							},
+						},
 					},
 					CommonLbConfig: &api.Cluster_CommonLbConfig{
 						LocalityConfigSpecifier: &api.Cluster_CommonLbConfig_ZoneAwareLbConfig_{
@@ -184,13 +202,31 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 
 					localityEndpoints := []endpoint.LocalityLbEndpoints{_cluster.EndpointConfig.ToEnvoy(0, 1)}
 
+					sendEndpoints = append(sendEndpoints, &v2.ClusterLoadAssignment{
+						Endpoints: localityEndpoints,
+						ClusterName: _cluster.Name,
+					})
+
 					cluster := &v2.Cluster{
 						Name:           _cluster.Name,
 						ConnectTimeout: time.Duration(_cluster.ConnectTimeout) * time.Millisecond,
-						Type:           v2.Cluster_STATIC,
-						LoadAssignment: &v2.ClusterLoadAssignment{
-							ClusterName: _cluster.Name,
-							Endpoints:   localityEndpoints,
+						Type:           v2.Cluster_EDS,
+						EdsClusterConfig: &api.Cluster_EdsClusterConfig{
+							ServiceName: _cluster.Name,
+							EdsConfig: &core.ConfigSource{
+								ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
+									ApiConfigSource: &core.ApiConfigSource{
+										ApiType: core.ApiConfigSource_GRPC,
+										GrpcServices: []*core.GrpcService{{
+											TargetSpecifier: &core.GrpcService_EnvoyGrpc_ {
+												EnvoyGrpc: &core.GrpcService_EnvoyGrpc {
+													ClusterName: "xds_cluster",
+												},
+											},
+										}},
+									},
+								},
+							},
 						},
 						CommonLbConfig: &api.Cluster_CommonLbConfig{
 							LocalityConfigSpecifier: &api.Cluster_CommonLbConfig_ZoneAwareLbConfig_{
@@ -292,7 +328,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 	logrus.Infof("Generated endpoints: %+v", sendEndpoints)
 	logrus.Infof("Generated clusters: %+v", sendClusters)
 	logrus.Infof("Setting config for %s", n.NodeName)
-	snapshot := cache.NewSnapshot(time.Now().String(), nil, sendClusters, nil, sendListeners)
+	snapshot := cache.NewSnapshot(time.Now().String(), sendEndpoints, sendClusters, nil, sendListeners)
 	_ = snapshotCache.SetSnapshot(n.NodeName, snapshot)
 }
 
