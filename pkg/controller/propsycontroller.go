@@ -176,7 +176,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 	var endpointName string
 	var percent int
 	if isCanary {
-		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService+CANARY_POSTFIX)
+		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService)
 		percent = pps.Spec.CanaryPercent
 	} else {
 		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service)
@@ -320,8 +320,8 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 
 	uniqueNameEndpointsNew := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Spec.Service)
 	uniqueNameEndpointsOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.Service)
-	uniqueNameEndpointsCanaryNew := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Spec.CanaryService+CANARY_POSTFIX)
-	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.CanaryService+CANARY_POSTFIX)
+	uniqueNameEndpointsCanaryNew := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, new.Spec.CanaryService)
+	uniqueNameEndpointsCanaryOld := propsy.GenerateUniqueEndpointName(C.locality, new.Namespace, old.Spec.CanaryService)
 
 	if old.Spec.Service != new.Spec.Service {
 		// disconnect old services
@@ -424,7 +424,7 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 
 	for i := range newNodes {
 		newNodes[i].Update()
-		if old.Spec.Service != new.Spec.Service {
+		if old.Spec.Service != new.Spec.Service || old.Spec.CanaryService != new.Spec.CanaryService {
 			C.ResyncEndpoints(new)
 		}
 	}
