@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: test-e2e
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 10.10.20.30
+        nodeName: node10.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-1230
+          namespace: default
+      - ip: 10.40.50.60
+        nodeName: node20.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-4560
+          namespace: default
+      - ip: 10.70.80.90
+        nodeName: node30.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-7890
+          namespace: default
+    ports:
+      - port: 9999
+        protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: test-e2e-canary
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 192.168.10.20
+        nodeName: node4.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-canary-120
+          namespace: default
+    ports:
+      - port: 9999
+        protocol: TCP
+---
+apiVersion: propsy.seznam.cz/v1
+kind: ProPsyService
+metadata:
+  name: test
+  namespace: default
+spec:
+  disabled: false
+  listen: 0:6444
+  nodes:
+    - e2e-test
+  percent: 99
+  service: test-e2e
+  servicePort: 9999
+  timeout: 5000
+  canaryService: test-e2e-canary
+  canaryPercent: 5
+
+

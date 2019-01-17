@@ -9,9 +9,9 @@ spec:
   nodes:
   - e2e-test
   percent: 99
-  service: kubernetes
+  service: test-e2e
   servicePort: 6443
   timeout: 5000
-  canaryService: test
+  canaryService: test-e2e-canary
   canaryPercent: 5
 

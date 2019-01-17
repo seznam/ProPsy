@@ -1,0 +1,46 @@
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: test-e2e
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 10.1.2.3
+        nodeName: node1.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-123
+          namespace: default
+      - ip: 10.4.5.6
+        nodeName: node2.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-456
+          namespace: default
+      - ip: 10.7.8.9
+        nodeName: node3.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-789
+          namespace: default
+    ports:
+      - port: 9999
+        protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: test-e2e-canary
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 192.168.1.2
+        nodeName: node4.seznam
+        targetRef:
+          kind: Pod
+          name: test-e2e-canary-12
+          namespace: default
+    ports:
+      - port: 9999
+        protocol: TCP
