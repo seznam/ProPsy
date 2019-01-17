@@ -47,8 +47,9 @@ type EndpointConfig struct {
 }
 
 type Endpoint struct {
-	Host   string
-	Weight int
+	Host    string
+	Weight  int
+	Healthy bool
 }
 
 func (N *NodeConfig) Update() {
@@ -140,7 +141,7 @@ func (L *VirtualHost) AddRoutes(configs []*RouteConfig) {
 func (V *RouteConfig) AddCluster(c *ClusterConfig) {
 	if i := V.FindCluster(c.Name); i != nil {
 		for ep := range c.EndpointConfig.Endpoints {
-			i.EndpointConfig.AddEndpoint(c.EndpointConfig.Endpoints[ep].Host, c.EndpointConfig.Endpoints[ep].Weight)
+			i.EndpointConfig.AddEndpoint(c.EndpointConfig.Endpoints[ep].Host, c.EndpointConfig.Endpoints[ep].Weight, c.EndpointConfig.Endpoints[ep].Healthy)
 		}
 	} else {
 		V.Clusters = append(V.Clusters, c)
@@ -253,9 +254,9 @@ func (E *EndpointConfig) Clear() {
 	E.Endpoints = []*Endpoint{}
 }
 
-func (E *EndpointConfig) AddEndpoint(host string, weight int) {
+func (E *EndpointConfig) AddEndpoint(host string, weight int, healthy bool) {
 	E.RemoveEndpoint(host) // force remove if it exists to avoid duplicating
-	E.Endpoints = append(E.Endpoints, &Endpoint{Host: host, Weight: weight})
+	E.Endpoints = append(E.Endpoints, &Endpoint{Host: host, Weight: weight, Healthy: healthy})
 }
 
 func (E *EndpointConfig) RemoveEndpoint(host string) {

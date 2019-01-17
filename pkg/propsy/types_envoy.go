@@ -6,6 +6,10 @@ import (
 )
 
 func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
+	healthStatus := core.HealthStatus_HEALTHY
+	if ! E.Healthy {
+		healthStatus = core.HealthStatus_UNHEALTHY
+	}
 	return endpoint.LbEndpoint{
 		Endpoint: &endpoint.Endpoint{
 			Address: &core.Address{
@@ -19,6 +23,7 @@ func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
 				},
 			},
 		},
+		HealthStatus: healthStatus,
 	}
 }
 

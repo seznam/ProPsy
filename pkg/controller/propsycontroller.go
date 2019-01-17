@@ -126,7 +126,10 @@ func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
 	// it seems to be a tracked service. Feed in all the endpoints...
 	for i := 0; i < len(endpoint.Subsets); i++ {
 		for j := 0; j < len(endpoint.Subsets[i].Addresses); j++ {
-			ecs.AddEndpoint(endpoint.Subsets[i].Addresses[j].IP, STATIC_WEIGHT_TODO)
+			ecs.AddEndpoint(endpoint.Subsets[i].Addresses[j].IP, STATIC_WEIGHT_TODO, true)
+		}
+		for j := 0; j < len(endpoint.Subsets[i].NotReadyAddresses); j++ {
+			ecs.AddEndpoint(endpoint.Subsets[i].NotReadyAddresses[j].IP, STATIC_WEIGHT_TODO, false)
 		}
 	}
 
