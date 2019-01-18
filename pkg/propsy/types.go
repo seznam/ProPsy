@@ -3,6 +3,8 @@ package propsy
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -12,7 +14,6 @@ type NodeConfig struct {
 }
 
 type ListenerConfig struct {
-	//	TrackedConfig
 	Name         string
 	Listen       string
 	VirtualHosts []*VirtualHost
@@ -30,7 +31,6 @@ type VirtualHost struct {
 }
 
 type ClusterConfig struct {
-	//	TrackedConfig
 	Name           string
 	ConnectTimeout int
 	EndpointConfig *EndpointConfig
@@ -97,28 +97,28 @@ func (N *NodeConfig) RemoveListener(s string) {
 	logrus.Debugf("No such listener found!")
 }
 
-func (L *VirtualHost) AddRoute(r *RouteConfig) {
-	if L.FindRoute(r.Name) != nil {
-		L.FindRoute(r.Name).AddClusters(r.Clusters)
+func (V *VirtualHost) AddRoute(r *RouteConfig) {
+	if V.FindRoute(r.Name) != nil {
+		V.FindRoute(r.Name).AddClusters(r.Clusters)
 	} else {
-		L.Routes = append(L.Routes, r)
+		V.Routes = append(V.Routes, r)
 	}
 }
 
-func (L *VirtualHost) RemoveRoute(name string) {
-	for route := range L.Routes {
-		if L.Routes[route].Name == name {
-			L.Routes[route] = L.Routes[len(L.Routes)-1]
-			L.Routes = L.Routes[:len(L.Routes)-1]
+func (V *VirtualHost) RemoveRoute(name string) {
+	for route := range V.Routes {
+		if V.Routes[route].Name == name {
+			V.Routes[route] = V.Routes[len(V.Routes)-1]
+			V.Routes = V.Routes[:len(V.Routes)-1]
 			return
 		}
 	}
 }
 
-func (L *VirtualHost) FindRoute(name string) *RouteConfig {
-	for route := range L.Routes {
-		if L.Routes[route].Name == name {
-			return L.Routes[route]
+func (V *VirtualHost) FindRoute(name string) *RouteConfig {
+	for route := range V.Routes {
+		if V.Routes[route].Name == name {
+			return V.Routes[route]
 		}
 	}
 
@@ -126,42 +126,42 @@ func (L *VirtualHost) FindRoute(name string) *RouteConfig {
 	return nil
 }
 
-func (L *VirtualHost) Free() {
-	for r := range L.Routes {
-		L.Routes[r].Free()
+func (V *VirtualHost) Free() {
+	for r := range V.Routes {
+		V.Routes[r].Free()
 	}
 }
 
-func (L *VirtualHost) AddRoutes(configs []*RouteConfig) {
+func (V *VirtualHost) AddRoutes(configs []*RouteConfig) {
 	for i := range configs {
-		L.AddRoute(configs[i])
+		V.AddRoute(configs[i])
 	}
 }
 
-func (V *RouteConfig) AddCluster(c *ClusterConfig) {
-	if i := V.FindCluster(c.Name); i != nil {
+func (R *RouteConfig) AddCluster(c *ClusterConfig) {
+	if i := R.FindCluster(c.Name); i != nil {
 		for ep := range c.EndpointConfig.Endpoints {
 			i.EndpointConfig.AddEndpoint(c.EndpointConfig.Endpoints[ep].Host, c.EndpointConfig.Endpoints[ep].Weight, c.EndpointConfig.Endpoints[ep].Healthy)
 		}
 	} else {
-		V.Clusters = append(V.Clusters, c)
+		R.Clusters = append(R.Clusters, c)
 	}
 }
 
-func (V *RouteConfig) RemoveCluster(name string) {
-	for cluster := range V.Clusters {
-		if V.Clusters[cluster].Name == name {
-			V.Clusters[cluster] = V.Clusters[len(V.Clusters)-1]
-			V.Clusters = V.Clusters[:len(V.Clusters)-1]
+func (R *RouteConfig) RemoveCluster(name string) {
+	for cluster := range R.Clusters {
+		if R.Clusters[cluster].Name == name {
+			R.Clusters[cluster] = R.Clusters[len(R.Clusters)-1]
+			R.Clusters = R.Clusters[:len(R.Clusters)-1]
 			return
 		}
 	}
 }
 
-func (V *RouteConfig) FindCluster(name string) *ClusterConfig {
-	for cluster := range V.Clusters {
-		if V.Clusters[cluster].Name == name {
-			return V.Clusters[cluster]
+func (R *RouteConfig) FindCluster(name string) *ClusterConfig {
+	for cluster := range R.Clusters {
+		if R.Clusters[cluster].Name == name {
+			return R.Clusters[cluster]
 		}
 	}
 
@@ -176,19 +176,42 @@ func (R *RouteConfig) Free() {
 	}
 }
 
-func (R *RouteConfig) TotalWeight() int {
-	totalWeight := 0
-	for i := 0; i < len(R.Clusters); i++ {
-		totalWeight += R.Clusters[i].Weight
-
+func (R *RouteConfig) CalculateWeights() (
+	totalWeight int, localZoneWeight int, otherZoneWeight int, canariesWeight int, connectTimeout int) {
+	otherZoneCount := 0
+	// find the total sum of weights that are not our cluster and our clusters as well
+	for c := range R.Clusters {
+		_cluster := R.Clusters[c]
+		if _cluster.EndpointConfig == nil {
+			continue
+		}
+		if _cluster.EndpointConfig.Locality.Zone == LocalZone && !_cluster.IsCanary {
+			localZoneWeight = _cluster.Weight
+			connectTimeout = _cluster.ConnectTimeout
+		} else if ! _cluster.IsCanary {
+			otherZoneWeight += _cluster.Weight
+			otherZoneCount++
+		} else if _cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone == LocalZone {
+			canariesWeight += _cluster.Weight // should be no more than one
+		}
 	}
 
-	return totalWeight
+	// do magic with weights
+	if localZoneWeight >= 100 {
+		otherZoneWeight = 0
+		localZoneWeight = 100
+	} else {
+		otherZoneWeight = 100 - localZoneWeight // todo change the maths to be an actual percentage of the rest
+	}
+
+	totalWeight = localZoneWeight + otherZoneCount * otherZoneWeight + canariesWeight // canaries are separated
+
+	return totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout
 }
 
-func (V *RouteConfig) AddClusters(configs []*ClusterConfig) {
+func (R *RouteConfig) AddClusters(configs []*ClusterConfig) {
 	for i := range configs {
-		V.AddCluster(configs[i])
+		R.AddCluster(configs[i])
 	}
 }
 
@@ -283,6 +306,23 @@ func (E *EndpointConfig) GetEndpoint(host string) *Endpoint {
 	}
 
 	return nil
+}
+
+func (L *ListenerConfig) GenerateListenParts() (host string, port int64) {
+	parts := strings.Split(L.Listen, ":")
+	port, _ = strconv.ParseInt(parts[0], 10, 32)
+	if len(parts) > 1 {
+		port, _ = strconv.ParseInt(parts[1], 10, 32)
+		host = parts[0]
+	} else {
+		host = "0.0.0.0"
+	}
+
+	if host == "0" {
+		host = "0.0.0.0"
+	}
+
+	return
 }
 
 type Locality struct {
