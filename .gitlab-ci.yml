@@ -8,7 +8,7 @@ build:
   script:
   - mkdir -p /GO/src/gitlab.seznam.net/
   - ln -s $(pwd) /GO/src/gitlab.seznam.net/propsy
-  - cd /GO/src/gitlab.seznam.net/propsy && glide install && go build main.go
+  - cd /GO/src/gitlab.seznam.net/propsy && go build main.go
   - mkdir dist
   - cp main dist/propsy
   artifacts:
@@ -35,7 +35,7 @@ testsrc:
   script:
   - mkdir -p /GO/src/gitlab.seznam.net/
   - ln -s $(pwd) /GO/src/gitlab.seznam.net/propsy
-  - cd /GO/src/gitlab.seznam.net/propsy && glide install && go test -cover ./...
+  - cd /GO/src/gitlab.seznam.net/propsy && go test -cover ./...
 
 teste2e:
   stage: test

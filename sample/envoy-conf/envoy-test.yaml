@@ -1,0 +1,88 @@
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address: { address: 127.0.0.1, port_value: 9902 }
+
+node:
+  id: testt
+
+static_resources:
+  clusters:
+  - connectTimeout: 0.800s
+    commonLbConfig:
+      healthy_panic_threshold: 
+        value: 1.0
+    loadAssignment:
+      clusterName: default-test-locality
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: 10.104.40.19
+                portValue: 9999
+          health_status: HEALTHY
+        - endpoint:
+            address:
+              socketAddress:
+                address: 10.104.41.27
+                portValue: 9999
+          health_status: HEALTHY
+        - endpoint:
+            address:
+              socketAddress:
+                address: 10.102.15.21
+                portValue: 9999
+          health_status: HEALTHY
+        priority: 1
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: 10.66.99.135
+                portValue: 9999
+          health_status: HEALTHY
+        - endpoint:
+            address:
+              socketAddress:
+                address: 10.67.70.164
+                portValue: 9999
+          health_status: HEALTHY
+        - endpoint:
+            address:
+              socketAddress:
+                address: 10.67.129.209
+                portValue: 9999
+          health_status: UNHEALTHY
+    name: default-test-locality
+  listeners:
+  - address:
+      socketAddress:
+        address: 0.0.0.0
+        portValue: 9990
+        ipv4Compat: true
+    filterChains:
+    - filters:
+      - name: envoy.http_connection_manager
+        config:
+          http_filters:
+          - config: null
+            name: envoy.router
+          route_config:
+            name: default-test-locality
+            virtual_hosts:
+            - domains:
+              - '*'
+              name: default-test-locality
+              routes:
+              - match:
+                  prefix: /
+                route:
+                  weighted_clusters:
+                    clusters:
+                    - name: default-test-locality
+                      weight: 100
+                    total_weight: 100
+          stat_prefix: default-test-locality
+    name: default-test-locality
+
