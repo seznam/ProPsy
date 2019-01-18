@@ -1,7 +1,10 @@
 package propsy
 
 import (
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	"log"
+	"reflect"
 	"testing"
 )
 
@@ -11,28 +14,65 @@ func TestNodeConfig(T *testing.T) {
 	node.FindListener("foobar").VirtualHosts = append(node.FindListener("foobar").VirtualHosts,
 		&VirtualHost{Name: "foobar"})
 	node.FindListener("foobar").FindVHost("foobar").AddRoute(&RouteConfig{Name: "foobar"})
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "foobar", Weight: 5, ConnectTimeout: 1, EndpointConfig: &EndpointConfig{
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").
+		AddCluster(&ClusterConfig{Name: "foobar", Weight: 5, ConnectTimeout: 1, EndpointConfig: &EndpointConfig{
 		Name:        "test",
 		ServicePort: 123,
 		Endpoints:   []*Endpoint{},
 	}})
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddClusters([]*ClusterConfig{
+		{
+			IsCanary: true,
+			Weight: 5,
+			Name: "foobar",
+			ConnectTimeout: 5,
+			EndpointConfig: &EndpointConfig{
+				Name: "foobars",
+				Locality: &Locality{
+					Zone: "test",
+				},
+				ServicePort: 456,
+				Endpoints: []*Endpoint{
+					{
+						Weight: 5,
+						Healthy: true,
+						Host: "4.5.6.7",
+					},
+				},
+			},
+		},
+		{
+			Weight: 1,
+			IsCanary: false,
+			Name: "test-notcanary",
+			ConnectTimeout: 1,
+			EndpointConfig: &EndpointConfig{
+				Name: "test-notcanary",
+				ServicePort: 9999,
+			},
+		},
+	})
+
+	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint("4.5.6.7") == nil {
+		log.Fatalf("There is no 4.5.6.7 endpoint!")
+	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10, true)
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("5.6.7.8", 11, true)
 
-	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 2 {
+	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 3 {
 		log.Fatalf("There is a wrong number of endpoints!")
 	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.RemoveEndpoint("5.6.7.8")
-	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 1 {
+	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 2 {
 		log.Fatalf("There is a wrong number of endpoints!")
 	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "testbar", Weight: 10})
 
-	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").TotalWeight() != 15 {
-		log.Fatalf("Error total weight: expected 15!")
+	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").TotalWeight() != 16 {
+		log.Fatalf("Error total weight: expected 16!")
 	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").RemoveCluster("foobar")
@@ -62,9 +102,13 @@ func TestNodeConfig(T *testing.T) {
 		Name:        "test",
 		ServicePort: 123,
 		Endpoints:   []*Endpoint{},
+		Locality: &Locality{
+			Zone: "test",
+		},
 	}})
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10, true)
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("11.22.33.44", 20, false)
 
 	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint("1.2.3.4") == nil {
 		log.Fatalf("Couldn't find endpoint!")
@@ -73,11 +117,58 @@ func TestNodeConfig(T *testing.T) {
 	if node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.GetEndpoint("2.3.4.5") != nil {
 		log.Fatalf("Found a non-existing endpoint!")
 	}
+	epc := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.ToEnvoy(2, 3)
+	epc_orig := endpoint.LocalityLbEndpoints{
+		Locality: &core.Locality{
+			Zone: "test",
+			SubZone: "admins5",
+			Region: "Seznam",
+		},
+		LoadBalancingWeight: UInt32FromInteger(3),
+		Priority: uint32(2),
+		LbEndpoints: []endpoint.LbEndpoint{
+			{
+				Endpoint: &endpoint.Endpoint{
+					Address: &core.Address{
+						Address: &core.Address_SocketAddress{
+							SocketAddress: &core.SocketAddress{
+								Address: "1.2.3.4",
+								PortSpecifier: &core.SocketAddress_PortValue{
+									PortValue: uint32(123),
+								},
+							},
+						},
+					},
+				},
+				HealthStatus: core.HealthStatus_HEALTHY,
+			},
+			{
+				Endpoint: &endpoint.Endpoint{
+					Address: &core.Address{
+						Address: &core.Address_SocketAddress{
+							SocketAddress: &core.SocketAddress{
+								Address: "11.22.33.44",
+								PortSpecifier: &core.SocketAddress_PortValue{
+									PortValue: uint32(123),
+								},
+							},
+						},
+					},
+				},
+				HealthStatus: core.HealthStatus_UNHEALTHY,
+			},
+		},
+	}
+	if ! reflect.DeepEqual(epc, epc_orig) {
+		log.Fatalf("Generated wrong envoy lbendpoint! %+v vs %+v", epc, epc_orig)
+	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").Free()
 	if len(node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.Endpoints) != 0 {
 		log.Fatalf("Endpoints were not removed!")
 	}
+
+
 
 	node.Free()
 
