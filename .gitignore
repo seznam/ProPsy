@@ -1,6 +1,5 @@
 .idea/
 main
 dist/
-propsy
 proto/data-plane-api/
 **/*.swp
