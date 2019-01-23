@@ -34,7 +34,7 @@ func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
 }
 
 func (E *EndpointConfig) ToEnvoy(priority, weight int) endpoint.LocalityLbEndpoints {
-	endpoints := []endpoint.LbEndpoint{}
+	var endpoints []endpoint.LbEndpoint
 	for i := range E.Endpoints {
 		endpoints = append(endpoints, E.Endpoints[i].ToEnvoy(E.ServicePort))
 	}
@@ -104,7 +104,7 @@ func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssig
 }
 
 func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoadAssignment {
-	endpoints := []endpoint.LocalityLbEndpoints{}
+	var endpoints []endpoint.LocalityLbEndpoints
 	for c := range R.Clusters {
 		_cluster := R.Clusters[c]
 		// skip canaries for this

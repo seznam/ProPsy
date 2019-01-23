@@ -66,19 +66,19 @@ func UInt64FromInteger(val int) *types.UInt64Value {
 
 func GenerateEnvoyConfig(n *NodeConfig) {
 	//sendRoutes := []cache.Resource{}
-	sendEndpoints := []cache.Resource{}
-	sendClusters := []cache.Resource{}
-	sendListeners := []cache.Resource{}
+	var sendEndpoints []cache.Resource
+	var sendClusters []cache.Resource
+	var sendListeners []cache.Resource
 
 	for l := range n.Listeners {
 		_listener := n.Listeners[l]
-		vhosts := []route.VirtualHost{}
+		var vhosts []route.VirtualHost
 		for v := range n.Listeners[l].VirtualHosts {
 			_vhost := _listener.VirtualHosts[v]
-			routes := []route.Route{}
+			var routes []route.Route
 			for r := range _vhost.Routes {
 				_route := _vhost.Routes[r]
-				routedClusters := []*route.WeightedCluster_ClusterWeight{}
+				var routedClusters []*route.WeightedCluster_ClusterWeight
 
 				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout := _route.CalculateWeights()
 
