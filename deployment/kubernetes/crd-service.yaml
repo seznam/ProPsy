@@ -68,7 +68,7 @@ spec:
   - name: Timeout
     type: integer
     description: Connect Timeout to upstream endpoints
-    JSONPath: .spec.service
+    JSONPath: .spec.timeout
   - name: Type
     type: string
     description: "Type of the proxied service. Known types: http, tcp"
