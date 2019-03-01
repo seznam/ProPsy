@@ -12,7 +12,7 @@ import (
 )
 
 func TestHCM(T *testing.T) {
-	listener := ListenerConfig{Listen:"8080", Name:"foobar"}
+	listener := ListenerConfig{Listen: "8080", Name: "foobar"}
 	hcm := listener.GenerateHCM(nil)
 
 	_hcm := &v2.HttpConnectionManager{

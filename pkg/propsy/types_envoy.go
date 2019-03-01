@@ -11,13 +11,13 @@ import (
 	v23 "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
+	"github.com/sirupsen/logrus"
 	"time"
-  "github.com/sirupsen/logrus"
 )
 
 func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
 	healthStatus := core.HealthStatus_HEALTHY
-	if ! E.Healthy {
+	if !E.Healthy {
 		healthStatus = core.HealthStatus_UNHEALTHY
 	}
 	return endpoint.LbEndpoint{
@@ -103,7 +103,7 @@ func (L *ListenerConfig) GenerateWeightedCluster(host route.VirtualHost) *v23.Tc
 		WeightedClusters: &v23.TcpProxy_WeightedCluster{
 			Clusters: []*v23.TcpProxy_WeightedCluster_ClusterWeight{
 				{
-					Name: host.Name,
+					Name:   host.Name,
 					Weight: uint32(1), // TODO
 				},
 			},
@@ -113,14 +113,14 @@ func (L *ListenerConfig) GenerateWeightedCluster(host route.VirtualHost) *v23.Tc
 
 func (L *ListenerConfig) GenerateTCP(clusters *v23.TcpProxy_WeightedClusters) *v23.TcpProxy {
 	return &v23.TcpProxy{
-		StatPrefix: L.Name,
+		StatPrefix:       L.Name,
 		ClusterSpecifier: clusters,
 	}
 }
 
 type ClusterLoadAssignment []endpoint.LocalityLbEndpoints
 
-func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssignment{
+func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssignment {
 	return &v2.ClusterLoadAssignment{
 		Endpoints:   *C,
 		ClusterName: clusterName,
@@ -187,7 +187,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 	var FilterType string
 	var err error
 
-  logrus.Info("Generating listener for type: " + string(L.Type))
+	logrus.Info("Generating listener for type: " + string(L.Type))
 
 	switch L.Type {
 	case HTTP:

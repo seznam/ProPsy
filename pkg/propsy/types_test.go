@@ -118,7 +118,7 @@ func TestNodeConfig(T *testing.T) {
 			},
 		},
 	}
-	if ! reflect.DeepEqual(epc, epc_orig) {
+	if !reflect.DeepEqual(epc, epc_orig) {
 		log.Fatalf("Generated wrong envoy lbendpoint! %+v vs %+v", epc, epc_orig)
 	}
 
@@ -180,7 +180,7 @@ func generateSampleNode() NodeConfig {
 			EndpointConfig: &EndpointConfig{
 				Name:        "test-notcanary",
 				ServicePort: 9999,
-				Locality: &Locality {
+				Locality: &Locality{
 					Zone: "test",
 				},
 			},

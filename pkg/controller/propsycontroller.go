@@ -133,7 +133,6 @@ func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
 		}
 	}
 
-
 	for i := range nodes {
 		nodes[i].Update()
 	}
@@ -167,8 +166,7 @@ func (C *ProPsyController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoints)
 	defer C.ppsCache.MutexEndpoints.Unlock()
 
 	ecs.Endpoints = []*propsy.Endpoint{} // clear the existing from this locality. do NOT update tracked nodes until we feed the new ones in!!
-	C.EndpointAdded(new)                    // feed in new ones
-
+	C.EndpointAdded(new)                 // feed in new ones
 
 	for j := range nodes {
 		nodes[j].Update()
@@ -244,7 +242,8 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 			Domains: []string{"*"}, // TODO ?
 			Routes:  []*propsy.RouteConfig{C.NewRouteConfig(pps)},
 		}},
-		Type: propsyType,
+		Type:            propsyType,
+		TrackedLocality: C.locality.Zone,
 	}
 }
 
@@ -272,6 +271,7 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 	}
 
 	listenerConfig := C.NewListenerConfig(pps)
+	logrus.Debugf("Generated a new listener: %+v", listenerConfig)
 	if listenerConfig == nil {
 		return
 	}
@@ -452,7 +452,14 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 			return
 		}
 		for i := range newNodes {
-			newNodes[i].FindListener(uniqueName).Type = newType
+			// change type only if we're tracking by current zone or master zone.
+			if newNodes[i].FindListener(uniqueName).TrackedLocality == C.locality.Zone ||
+				C.locality.Zone == propsy.LocalZone {
+				logrus.Debugf("Changing type from %s to %s with tracking of %s vs %s vs %s", old.Spec.Type,
+					new.Spec.Type, newNodes[i].FindListener(uniqueName).TrackedLocality, C.locality.Zone, propsy.LocalZone)
+				newNodes[i].FindListener(uniqueName).Type = newType
+				newNodes[i].FindListener(uniqueName).TrackedLocality = C.locality.Zone // and possibly override local zone
+			}
 		}
 	}
 

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Test_generateClusterParts (T *testing.T) {
+func Test_generateClusterParts(T *testing.T) {
 	node := generateSampleNode()
 	clusterName := "foobar"
 	connectTimeout := 5000
@@ -62,7 +62,6 @@ func Test_generateClusterParts (T *testing.T) {
 		Endpoints:   lbEndpoints,
 		ClusterName: clusterName,
 	}
-
 
 	cluster := node.Listeners[0].VirtualHosts[0].Routes[0].Clusters[1].ToEnvoy()
 	routedCluster := WeightedClusterToEnvoy(clusterName, zoneWeight)

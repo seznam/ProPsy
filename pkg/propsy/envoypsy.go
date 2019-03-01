@@ -150,7 +150,6 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 	_ = snapshotCache.SetSnapshot(n.NodeName, snapshot)
 }
 
-
 func RemoveFromEnvoy(node *NodeConfig) {
 	snapshotCache.ClearSnapshot(node.NodeName)
 }

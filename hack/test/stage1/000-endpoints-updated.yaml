@@ -61,5 +61,6 @@ spec:
   timeout: 5000
   canaryService: test-e2e-canary
   canaryPercent: 5
+  type: HTTP
 
 

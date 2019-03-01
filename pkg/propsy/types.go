@@ -21,10 +21,11 @@ const (
 )
 
 type ListenerConfig struct {
-	Name         string
-	Listen       string
-	VirtualHosts []*VirtualHost
-	Type         ProxyType
+	Name            string
+	Listen          string
+	VirtualHosts    []*VirtualHost
+	Type            ProxyType
+	TrackedLocality string
 }
 
 type RouteConfig struct {
@@ -76,7 +77,20 @@ func (N *NodeConfig) Free() {
 func (N *NodeConfig) AddListener(l *ListenerConfig) {
 	logrus.Debugf("Adding a listener to node %s: %s", N.NodeName, l.Name)
 	if N.FindListener(l.Name) != nil {
-		N.FindListener(l.Name).AddVHosts(l.VirtualHosts)
+		listener := N.FindListener(l.Name)
+		// force local zone to become master locality for this listener if possible
+		if listener.TrackedLocality != LocalZone && l.TrackedLocality == LocalZone {
+			// remove the old one
+			N.RemoveListener(listener.Name)
+			// force a local one to be added
+			N.AddListener(l)
+			// and now swap them around
+			xl := listener
+			listener = l
+			l = xl
+		}
+
+		listener.AddVHosts(l.VirtualHosts)
 	} else {
 		N.Listeners = append(N.Listeners, l)
 	}
@@ -196,7 +210,7 @@ func (R *RouteConfig) CalculateWeights() (
 		if _cluster.EndpointConfig.Locality.Zone == LocalZone && !_cluster.IsCanary {
 			localZoneWeight = _cluster.Weight
 			connectTimeout = _cluster.ConnectTimeout
-		} else if ! _cluster.IsCanary {
+		} else if !_cluster.IsCanary {
 			otherZoneWeight += _cluster.Weight
 			otherZoneCount++
 		} else if _cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone == LocalZone {
@@ -212,7 +226,7 @@ func (R *RouteConfig) CalculateWeights() (
 		otherZoneWeight = 100 - localZoneWeight // todo change the maths to be an actual percentage of the rest
 	}
 
-	totalWeight = localZoneWeight + otherZoneCount * otherZoneWeight + canariesWeight // canaries are separated
+	totalWeight = localZoneWeight + otherZoneCount*otherZoneWeight + canariesWeight // canaries are separated
 
 	return totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout
 }
