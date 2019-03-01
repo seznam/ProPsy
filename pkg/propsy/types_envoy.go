@@ -1,14 +1,18 @@
 package propsy
 
 import (
+	"errors"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	v22 "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
+	v23 "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/util"
+	"github.com/gogo/protobuf/types"
 	"time"
+  "github.com/sirupsen/logrus"
 )
 
 func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
@@ -54,8 +58,8 @@ func (L *Locality) ToEnvoy() *core.Locality {
 	}
 }
 
-func (C *ClusterConfig) ToEnvoy(targetName string) *v2.Cluster {
-	return ClusterToEnvoy(targetName, C.ConnectTimeout)
+func (C *ClusterConfig) ToEnvoy() *v2.Cluster {
+	return ClusterToEnvoy(C.Name, C.ConnectTimeout)
 }
 
 func (V *VirtualHost) ToEnvoy(routes []route.Route) route.VirtualHost {
@@ -91,6 +95,26 @@ func (L *ListenerConfig) GenerateHCM(vhosts []route.VirtualHost) *v22.HttpConnec
 				},
 			},
 		},
+	}
+}
+
+func (L *ListenerConfig) GenerateWeightedCluster(host route.VirtualHost) *v23.TcpProxy_WeightedClusters {
+	return &v23.TcpProxy_WeightedClusters{
+		WeightedClusters: &v23.TcpProxy_WeightedCluster{
+			Clusters: []*v23.TcpProxy_WeightedCluster_ClusterWeight{
+				{
+					Name: host.Name,
+					Weight: uint32(1), // TODO
+				},
+			},
+		},
+	}
+}
+
+func (L *ListenerConfig) GenerateTCP(clusters *v23.TcpProxy_WeightedClusters) *v23.TcpProxy {
+	return &v23.TcpProxy{
+		StatPrefix: L.Name,
+		ClusterSpecifier: clusters,
 	}
 }
 
@@ -158,7 +182,25 @@ func ClusterToEnvoy(targetName string, connectTimeout int) *v2.Cluster {
 func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, error) {
 	listenHost, listenPort := L.GenerateListenParts()
 
-	hcm, err := util.MessageToStruct(L.GenerateHCM(vhosts))
+	var FilterConfig *types.Struct
+
+	var FilterType string
+	var err error
+
+  logrus.Info("Generating listener for type: " + string(L.Type))
+
+	switch L.Type {
+	case HTTP:
+		FilterType = util.HTTPConnectionManager
+		FilterConfig, err = util.MessageToStruct(L.GenerateHCM(vhosts))
+	case TCP:
+		if len(vhosts) != 1 {
+			return nil, errors.New("there are too many or no vhosts to this listener")
+		}
+		FilterType = util.TCPProxy
+		FilterConfig, err = util.MessageToStruct(L.GenerateTCP(L.GenerateWeightedCluster(vhosts[0])))
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -178,9 +220,9 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 		},
 		FilterChains: []listener.FilterChain{{
 			Filters: []listener.Filter{{
-				Name: util.HTTPConnectionManager,
+				Name: FilterType,
 				ConfigType: &listener.Filter_Config{
-					Config: hcm,
+					Config: FilterConfig,
 				},
 			}},
 		}},

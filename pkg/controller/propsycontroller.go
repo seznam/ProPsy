@@ -217,8 +217,25 @@ func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.R
 	}
 }
 
+func GetProxyType(typeInPps string) propsy.ProxyType {
+	switch typeInPps {
+	case "HTTP":
+		return propsy.HTTP
+	case "TCP":
+		return propsy.TCP
+	default:
+		logrus.Error("Unknown propsy type " + typeInPps)
+		return -1
+	}
+}
+
 func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *propsy.ListenerConfig {
 	uniqueName := propsy.GenerateUniqConfigName(pps.Namespace, pps.Name)
+	propsyType := GetProxyType(pps.Spec.Type)
+	if propsyType == -1 {
+		return nil
+	}
+
 	return &propsy.ListenerConfig{
 		Name:   uniqueName,
 		Listen: pps.Spec.Listen,
@@ -227,6 +244,7 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 			Domains: []string{"*"}, // TODO ?
 			Routes:  []*propsy.RouteConfig{C.NewRouteConfig(pps)},
 		}},
+		Type: propsyType,
 	}
 }
 
@@ -254,6 +272,9 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 	}
 
 	listenerConfig := C.NewListenerConfig(pps)
+	if listenerConfig == nil {
+		return
+	}
 
 	C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[0].EndpointConfig, nodes)
 	if pps.Spec.CanaryService != "" {
@@ -422,6 +443,16 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 		for i := range newNodes {
 			newNodes[i].FindListener(uniqueName).FindVHost(uniqueName).FindRoute(uniqueName).
 				FindCluster(uniqueNameEndpointsCanaryNew).Weight = new.Spec.CanaryPercent
+		}
+	}
+
+	if old.Spec.Type != new.Spec.Type {
+		newType := GetProxyType(new.Spec.Type)
+		if newType == -1 {
+			return
+		}
+		for i := range newNodes {
+			newNodes[i].FindListener(uniqueName).Type = newType
 		}
 	}
 

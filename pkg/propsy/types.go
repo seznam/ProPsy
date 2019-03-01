@@ -13,10 +13,18 @@ type NodeConfig struct {
 	Listeners []*ListenerConfig
 }
 
+type ProxyType int
+
+const (
+	HTTP ProxyType = iota
+	TCP
+)
+
 type ListenerConfig struct {
 	Name         string
 	Listen       string
 	VirtualHosts []*VirtualHost
+	Type         ProxyType
 }
 
 type RouteConfig struct {

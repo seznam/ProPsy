@@ -119,7 +119,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 					localityEndpoints := ClusterLoadAssignment{_cluster.EndpointConfig.ToEnvoy(0, 1)}
 
 					addEndpoints := localityEndpoints.ToEnvoy(_cluster.Name)
-					cluster := _cluster.ToEnvoy(_cluster.Name)
+					cluster := _cluster.ToEnvoy()
 					routedCluster := WeightedClusterToEnvoy(_cluster.Name, weight)
 
 					sendClusters = append(sendClusters, cluster)

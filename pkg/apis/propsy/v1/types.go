@@ -14,6 +14,7 @@ type ProPsyServiceSpec struct {
 	CanaryService string   `json:"canaryService"`
 	CanaryPercent int      `json:"canaryPercent"`
 	Timeout       int      `json:"timeout"`
+	Type          string   `json:"type"`
 }
 
 // +genclient

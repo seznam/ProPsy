@@ -13,7 +13,7 @@ import (
 
 func Test_generateClusterParts (T *testing.T) {
 	node := generateSampleNode()
-	clusterName := "clusterFoobar"
+	clusterName := "foobar"
 	connectTimeout := 5000
 	zoneWeight := 5
 
@@ -64,16 +64,16 @@ func Test_generateClusterParts (T *testing.T) {
 	}
 
 
-	cluster := node.Listeners[0].VirtualHosts[0].Routes[0].Clusters[1].ToEnvoy(clusterName)
+	cluster := node.Listeners[0].VirtualHosts[0].Routes[0].Clusters[1].ToEnvoy()
 	routedCluster := WeightedClusterToEnvoy(clusterName, zoneWeight)
 
 	if !proto.Equal(_cluster, cluster) {
 		log.Fatalf("Error generating cluster config: \n%+v\n vs \n%+v", cluster, _cluster)
 	}
 	if !proto.Equal(_routedCluster, routedCluster) {
-		log.Fatalf("Error generating route config: %+v vs %+v", routedCluster, _routedCluster)
+		log.Fatalf("Error generating route config: \n%+v\n vs \n%+v", routedCluster, _routedCluster)
 	}
 	if !proto.Equal(_cla, cla) {
-		log.Fatalf("Error generating cluster load assignment: %+v vs %+v", cla, _cla)
+		log.Fatalf("Error generating cluster load assignment: \n%+v\n vs \n%+v", cla, _cla)
 	}
 }
