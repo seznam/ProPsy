@@ -1,0 +1,120 @@
+# ProPsy
+ProPsy is a very useful tool that distributes config to remote Envoy nodes. It does so by a feature of Envoy - gRPC streaming discovery. Each Envoy gets set a name and a path to a discovery cluster, from which it pulls all of its config - Listeners, Clusters, Routes and Endpoints. What ProPsy does is listen across **MULTIPLE** Kubernetes clusters for these ProPsy Service events and Endpoint events to generate these configs.
+
+## How to use
+First you need some Envoy. Start by installing recent `adm-envoy` package (let's say 1.9+ as that has been tested and compiled protobufs against) and configure its node name to "my-proxy". Next you need to set up a CRD in your kubernetes cluster as defined in `deployment/kubernetes/crd-service.yaml`. Then you can start creating these "ProPsy Services":
+```yaml
+apiVersion: propsy.seznam.cz/v1
+kind: ProPsyService
+metadata:
+  name: miniapps
+  namespace: ftxt-hint
+spec:
+  disabled: false
+  listen: 0:4205
+  nodes:
+  - my-proxy
+  percent: 100
+  service: miniapps
+  servicePort: 4041
+  timeout: 800
+  type: HTTP
+  path: /miniapps/
+```
+What this will create is:
+- Listener on 0:4205 (any interface/IP, port 4205)
+- Work within namespace ftxt-hint
+- Set 100% of traffic to this service
+- Forward traffic to service ftxt-hint/miniapps port 4041
+- Set connect timeout to 800ms
+- Proxy as HTTP traffic
+- Set path prefix to /miniapps/
+- distribute this config to nodes that are named `my-proxy` and nowhere else
+
+Now it is time to start the ProPsy daemon itself (can be within k8s cluster or outside):
+```
+./propsy-bin -listen ":9999" -zone ko -debug -cluster /home/ashley/kubeconfig-propsy-ko.yaml:ko -cluster /home/ashley/kubeconfig-propsy-ng.yaml:ng
+```
+Flags:
+- listen: obvious, on which IP/port to listen (default `:8888`)
+- zone: local zone, preferred traffic goes to there (more useful than setting it on Envoy side as there is some logic not implemented and just missing)
+- debug: allow debug output (not required)
+- cluster: multiple pairs of `<path to kubeconfig>:<cluster name>`. Please note, that at least one cluster name should match the zone as it will be considered as `local zone` for preferred traffic weights.
+
+Now you need to actually start your Envoy instance. There is, however, one requirement: the discovery cluster must be called `xds_cluster` as it is what the ProPsy distributes as upstream discovery cluster for endpoints.
+
+Sample Envoy config:
+```yaml
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 9901 }
+
+dynamic_resources:
+  lds_config:
+    api_config_source:
+      api_type: gRPC
+      grpc_services:
+        envoy_grpc:
+          cluster_name: xds_cluster
+  cds_config:
+    api_config_source:
+      api_type: gRPC
+      grpc_services:
+        envoy_grpc:
+          cluster_name: xds_cluster
+
+cluster_manager:
+  local_cluster_name: xds_cluster
+
+node:
+  id: my_proxy
+  cluster: ko
+  locality:
+    region: ko
+    zone: ko
+    sub_zone: admins5
+
+static_resources:
+  clusters:
+  - name: xds_cluster
+    connect_timeout: 0.25s
+    type: STATIC
+    lb_policy: ROUND_ROBIN
+    http2_protocol_options: {}
+    commonLbConfig:
+      zone_aware_lb_config:
+        min_cluster_size: 1
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - locality:
+          region: ko
+          zone: ko
+          sub_zone: admins5
+        lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 10.249.5.11
+                port_value: 9999
+```
+And launch it as
+
+```
+/www/adm/envoy/sbin/envoy --config-path /www/adm/envoy/conf/envoy.yaml --service-cluster xds_cluster --service-zone ko --v2-config-only -l info
+```
+
+And you should be done! :) 
+
+## Debugging
+If there's something odd happening, it is possible to view the actual data ProPsy is distributing by using `grpcurl` (get it somewhere online or from a 1st stage in our gitlab pipeline builds) and fetching all the protobufs:
+```
+grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/lds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.ListenerDiscoveryService/FetchListeners | jq .
+grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/cds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.ClusterDiscoveryService/FetchClusters | jq .
+grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/eds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.EndpointDiscoveryService/FetchEndpoints | jq .
+```
+
+(Routes are distributed within Listener discovery)
+
+Please report bugs to us (admins5) IMMEDIATILY so we can fix them ASAP. Either by creating a gitlab issue or just sending us MR with a fix :)
