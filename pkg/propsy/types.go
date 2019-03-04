@@ -29,9 +29,10 @@ type ListenerConfig struct {
 }
 
 type RouteConfig struct {
-	Name     string
-	Clusters []*ClusterConfig
-	Path     string
+	Name          string
+	Clusters      []*ClusterConfig
+	PathPrefix    string
+	PrefixRewrite string
 }
 
 type VirtualHost struct {
@@ -252,7 +253,7 @@ func (R *RouteConfig) AddClusters(configs []*ClusterConfig) {
 }
 
 func (R *RouteConfig) GenerateUniqueRouteName() string {
-	return strings.Replace(R.Path, "/", "-", -1)
+	return strings.Replace(R.PathPrefix, "/", "-", -1)
 }
 
 func (L *ListenerConfig) FindVHost(name string) *VirtualHost {

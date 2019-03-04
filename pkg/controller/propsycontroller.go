@@ -209,12 +209,13 @@ func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.R
 		clusterConfigs = append(clusterConfigs, clusterConfigCanary)
 	}
 
-	routeName, path := propsy.GenerateRouteName(pps.Spec.Path)
+	routeName, path := propsy.GenerateRouteName(pps.Spec.PathPrefix)
 
 	return &propsy.RouteConfig{
-		Name:     routeName,
-		Clusters: clusterConfigs,
-		Path:     path,
+		Name:          routeName,
+		Clusters:      clusterConfigs,
+		PathPrefix:    path,
+		PrefixRewrite: pps.Spec.PrefixRewrite,
 	}
 }
 
@@ -308,7 +309,7 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 	domains := []string{"*"}
 	vhostName := propsy.GenerateVHostName(domains)
 	listenerName := propsy.GenerateListenerName(pps.Spec.Listen, propsyType)
-	routeName, _ := propsy.GenerateRouteName(pps.Spec.Path)
+	routeName, _ := propsy.GenerateRouteName(pps.Spec.PathPrefix)
 
 	for i := range pps.Spec.Nodes {
 		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])

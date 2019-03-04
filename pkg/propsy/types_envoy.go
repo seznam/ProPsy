@@ -235,7 +235,7 @@ func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWei
 	return route.Route{
 		Match: route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
-				Prefix: R.Path,
+				Prefix: R.PathPrefix,
 			},
 		},
 		Action: &route.Route_Route{
@@ -246,6 +246,7 @@ func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWei
 						TotalWeight: UInt32FromInteger(totalWeight),
 					},
 				},
+				PrefixRewrite: R.PrefixRewrite,
 			},
 		},
 	}

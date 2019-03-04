@@ -52,7 +52,9 @@ spec:
               maximum: 60000
             type:
               type: string
-            path:
+            pathPrefix:
+              type: string
+            prefixRewrite:
               type: string
   additionalPrinterColumns:
   - name: Service
@@ -78,4 +80,4 @@ spec:
   - name: Path
     type: string
     description: Path of the URL (default /)
-    JSONPath: .spec.path
+    JSONPath: .spec.pathPrefix
