@@ -107,7 +107,36 @@ And launch it as
 
 And you should be done! :) 
 
-## Debugging
+## FAQ 
+### Multi-clustering
+ProPsy supports running across multiple clusters. How, do you ask? Try creating a PPS with the **same** name+namespace in the other locality. Suddenly you can control traffic. 
+
+Note, that the main locality controls the service's type (HTTP, TCP) and % of the traffic. Setting 50% of traffic in the other locality has no effect, just as setting canary zone in the other locality.
+
+### Weights Example
+Cluster A: (local zone)
+- service 30
+- canary service 5
+
+Cluster B: (foreign zone)
+- service 30
+- canary service 10
+
+Weights go as follows from the point of cluster A:
+
+30 requests go to local service, 5 go to canary service and foreign receives 70 requests out of 105. 
+
+### Different services on one port
+ProPsy fully supports running multiple services on one port with different paths. Just set them to
+- the same node
+- the same listen
+- the same type
+- different path
+
+### Only foreign cluster service
+Discovery works across all connected clusters. That means that you can run some PPS only in a foreign cluster.
+
+### Debugging
 If there's something odd happening, it is possible to view the actual data ProPsy is distributing by using `grpcurl` (get it somewhere online or from a 1st stage in our gitlab pipeline builds) and fetching all the protobufs:
 ```
 grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/lds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.ListenerDiscoveryService/FetchListeners | jq .
@@ -117,4 +146,5 @@ grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -pr
 
 (Routes are distributed within Listener discovery)
 
+### Bug reports
 Please report bugs to us (admins5) IMMEDIATILY so we can fix them ASAP. Either by creating a gitlab issue or just sending us MR with a fix :)
