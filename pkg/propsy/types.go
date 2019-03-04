@@ -31,6 +31,7 @@ type ListenerConfig struct {
 type RouteConfig struct {
 	Name     string
 	Clusters []*ClusterConfig
+	Path     string
 }
 
 type VirtualHost struct {
@@ -237,10 +238,14 @@ func (R *RouteConfig) AddClusters(configs []*ClusterConfig) {
 	}
 }
 
-func (R *ListenerConfig) FindVHost(name string) *VirtualHost {
-	for i := range R.VirtualHosts {
-		if R.VirtualHosts[i].Name == name {
-			return R.VirtualHosts[i]
+func (R *RouteConfig) GenerateUniqueRouteName() string {
+	return strings.Replace(R.Path, "/", "-", -1)
+}
+
+func (L *ListenerConfig) FindVHost(name string) *VirtualHost {
+	for i := range L.VirtualHosts {
+		if L.VirtualHosts[i].Name == name {
+			return L.VirtualHosts[i]
 		}
 	}
 
@@ -265,17 +270,24 @@ func (L *ListenerConfig) Free() {
 	L.VirtualHosts = nil
 }
 
-func (R *ListenerConfig) AddVHosts(hosts []*VirtualHost) {
+func (L *ListenerConfig) AddVHosts(hosts []*VirtualHost) {
 	for i := range hosts {
-		R.AddVHost(hosts[i])
+		L.AddVHost(hosts[i])
 	}
 }
 
-func (R *ListenerConfig) AddVHost(host *VirtualHost) {
-	if R.FindVHost(host.Name) != nil {
-		R.FindVHost(host.Name).AddRoutes(host.Routes)
+func (L *ListenerConfig) AddVHost(host *VirtualHost) {
+	if L.FindVHost(host.Name) != nil {
+		L.FindVHost(host.Name).AddRoutes(host.Routes)
 	} else {
-		R.VirtualHosts = append(R.VirtualHosts, host)
+		L.VirtualHosts = append(L.VirtualHosts, host)
+	}
+}
+
+func (L *ListenerConfig) SafeRemove(vhost, route string) {
+	L.FindVHost(vhost).RemoveRoute(route)
+	if len(L.FindVHost(vhost).Routes) == 0 {
+		L.RemoveVHost(vhost)
 	}
 }
 
@@ -345,6 +357,26 @@ func (L *ListenerConfig) GenerateListenParts() (host string, port int64) {
 	}
 
 	return
+}
+
+func GenerateListenerName(listen string, xtype ProxyType) string {
+	return strings.Replace(listen, ":", "-", -1) + "_" + fmt.Sprintf("%d", xtype)
+}
+
+func GenerateVHostName(domains []string) string {
+	return strings.Join(domains, "-")
+}
+
+func GenerateRouteName(pathSpec string) (string, string) {
+	path := "/"
+	if pathSpec != "" {
+		path = pathSpec
+	}
+	if path[0:1] != "/" {
+		path = "/" + path
+	}
+
+	return strings.Replace(path, "/", "_", -1), path
 }
 
 type Locality struct {

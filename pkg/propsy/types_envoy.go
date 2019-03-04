@@ -235,7 +235,7 @@ func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWei
 	return route.Route{
 		Match: route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
-				Prefix: "/",
+				Prefix: R.Path,
 			},
 		},
 		Action: &route.Route_Route{

@@ -42,10 +42,12 @@ func (i ConnectedClusters) Set(flag string) error {
 
 var connectedClusters ConnectedClusters
 var debugMode bool
+var listenConfig string
 
 func init() {
 	flag.Var(&connectedClusters, "cluster", "Kubernetes cluster map kubeconfigPath:zone")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug output")
+	flag.StringVar(&listenConfig, "listen", ":8888", "IP:Port to listen on")
 
 	localities = map[string]*propsy.Locality{}
 }
@@ -92,7 +94,7 @@ func main() {
 
 	cache.ProcessQueueOnce()
 
-	lis, _ := net.Listen("tcp", ":8888")
+	lis, _ := net.Listen("tcp", listenConfig)
 
 	go func() {
 		if err := propsy.GetGRPCServer().Serve(lis); err != nil {

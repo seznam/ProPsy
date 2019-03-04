@@ -90,9 +90,9 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				// first setup local-zone cluster
 				endpointsAll := _route.GeneratePrioritizedEndpoints(LocalZone)
 
-				addEndpoints := endpointsAll.ToEnvoy(_vhost.Name)
-				cluster := ClusterToEnvoy(_vhost.Name, connectTimeout)
-				routedCluster := WeightedClusterToEnvoy(_vhost.Name, localZoneWeight)
+				addEndpoints := endpointsAll.ToEnvoy(_listener.Name + "_" + _route.GenerateUniqueRouteName())
+				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout)
+				routedCluster := WeightedClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), localZoneWeight)
 
 				sendClusters = append(sendClusters, cluster)
 				routedClusters = append(routedClusters, routedCluster)

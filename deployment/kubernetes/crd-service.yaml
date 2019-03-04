@@ -52,6 +52,8 @@ spec:
               maximum: 60000
             type:
               type: string
+            path:
+              type: string
   additionalPrinterColumns:
   - name: Service
     type: string
@@ -71,5 +73,9 @@ spec:
     JSONPath: .spec.timeout
   - name: Type
     type: string
-    description: "Type of the proxied service. Known types: http, tcp"
+    description: "Type of the proxied service. Known types: HTTP, TCP (default HTTP)"
     JSONPath: .spec.type
+  - name: Path
+    type: string
+    description: Path of the URL (default /)
+    JSONPath: .spec.path
