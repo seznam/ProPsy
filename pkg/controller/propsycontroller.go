@@ -315,8 +315,10 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 		lis := node.FindListener(listenerName)
 		if lis != nil {
 			lis.SafeRemove(vhostName, routeName)
+			logrus.Debugf("Remaining vhosts: %d", len(lis.VirtualHosts))
 			if len(lis.VirtualHosts) == 0 {
 				lis.Free()
+				node.RemoveListener(lis.Name)
 				propsy.RemoveFromEnvoy(node)
 			}
 		}

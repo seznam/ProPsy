@@ -285,6 +285,9 @@ func (L *ListenerConfig) AddVHost(host *VirtualHost) {
 }
 
 func (L *ListenerConfig) SafeRemove(vhost, route string) {
+	if L.FindVHost(vhost) == nil {
+		return
+	}
 	L.FindVHost(vhost).RemoveRoute(route)
 	if len(L.FindVHost(vhost).Routes) == 0 {
 		L.RemoveVHost(vhost)
