@@ -314,12 +314,18 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
 		lis := node.FindListener(listenerName)
 		if lis != nil {
-			lis.SafeRemove(vhostName, routeName)
+			if pps.Spec.CanaryService != "" {
+				lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService))
+			}
+			lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service))
+
 			logrus.Debugf("Remaining vhosts: %d", len(lis.VirtualHosts))
 			if len(lis.VirtualHosts) == 0 {
 				lis.Free()
 				node.RemoveListener(lis.Name)
 				propsy.RemoveFromEnvoy(node)
+			} else {
+				node.Update()
 			}
 		}
 	}

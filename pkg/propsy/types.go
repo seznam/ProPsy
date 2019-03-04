@@ -161,6 +161,18 @@ func (V *VirtualHost) AddRoutes(configs []*RouteConfig) {
 	}
 }
 
+func (V *VirtualHost) SafeRemoveRoute(route string, clusterName string) {
+	R := V.FindRoute(route)
+	if R == nil {
+		return
+	}
+
+	R.RemoveCluster(clusterName)
+	if len(R.Clusters) == 0 {
+		V.RemoveRoute(route)
+	}
+}
+
 func (R *RouteConfig) AddCluster(c *ClusterConfig) {
 	if i := R.FindCluster(c.Name); i != nil {
 		for ep := range c.EndpointConfig.Endpoints {
@@ -285,11 +297,11 @@ func (L *ListenerConfig) AddVHost(host *VirtualHost) {
 	}
 }
 
-func (L *ListenerConfig) SafeRemove(vhost, route string) {
+func (L *ListenerConfig) SafeRemove(vhost, route, clusterName string) {
 	if L.FindVHost(vhost) == nil {
 		return
 	}
-	L.FindVHost(vhost).RemoveRoute(route)
+	L.FindVHost(vhost).SafeRemoveRoute(route, clusterName)
 	if len(L.FindVHost(vhost).Routes) == 0 {
 		L.RemoveVHost(vhost)
 	}
