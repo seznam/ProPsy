@@ -202,6 +202,7 @@ func (R *RouteConfig) Free() {
 func (R *RouteConfig) CalculateWeights() (
 	totalWeight int, localZoneWeight int, otherZoneWeight int, canariesWeight int, connectTimeout int) {
 	otherZoneCount := 0
+	connectTimeout = 1 // set sane default so envoy doesn't freak out
 	// find the total sum of weights that are not our cluster and our clusters as well
 	for c := range R.Clusters {
 		_cluster := R.Clusters[c]
