@@ -1,6 +1,7 @@
 stages:
 - build
 - test
+- dockerize
 
 build:
   stage: build
@@ -59,3 +60,10 @@ teste2e:
   - echo "ETCD log -------"
   - cat /tmp/log/etcd.log
   - /bin/sh -c 'killall -9 propsy hyperkube etcd || :'
+
+dockerize:
+  stage: dockerize
+  image: docker.dev.dszn.cz/debian-docker-engine:stretch
+  script:
+  - docker build --pull -t cid.dev.dszn.cz/admins5/propsy:${CI_PIPELINE_ID} .
+  - docker push cid.dev.dszn.cz/admins5/propsy:${CI_PIPELINE_ID}
