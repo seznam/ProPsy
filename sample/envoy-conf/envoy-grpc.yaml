@@ -21,11 +21,11 @@ cluster_manager:
   local_cluster_name: xds_cluster
 
 node:
-  id: test
-  cluster: ng
+  id: scif-proxy
+  cluster: ko
   locality:
-    region: ng
-    zone: ng
+    region: ko
+    zone: ko
     sub_zone: admins5
 
 static_resources:
@@ -33,6 +33,13 @@ static_resources:
   - name: xds_cluster
     connect_timeout: 0.25s
     type: STATIC
+    tls_context:
+      common_tls_context:
+        tls_certificates:
+        - certificate_chain: { "filename": "/config/cert/localhost.pem" }
+          private_key: { "filename": "/config/cert/localhost-key.pem" }
+        validation_context:
+          trusted_ca: { "filename": "/config/cert/server-ca.pem" }
     lb_policy: ROUND_ROBIN
     http2_protocol_options: {}
     commonLbConfig:

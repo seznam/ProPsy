@@ -8,8 +8,6 @@ import (
 	"gitlab.seznam.net/propsy/pkg/propsy"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
-	"log"
 	"net"
 	"strings"
 
@@ -55,6 +53,7 @@ func init() {
 func main() {
 
 	flag.Parse()
+	propsy.InitGRPCServer()
 
 	if debugMode {
 		logrus.SetLevel(logrus.DebugLevel)
@@ -63,24 +62,33 @@ func main() {
 	}
 
 	if len(connectedClusters) == 0 {
-		log.Fatal("There are zero clusters defined. Exitting!")
+		logrus.Fatal("There are zero clusters defined. Exiting!")
 	}
 
 	cache := propsy.NewProPsyCache()
 
+	lis, _ := net.Listen("tcp", listenConfig)
+	go func() {
+		if err := propsy.GetGRPCServer().Serve(lis); err != nil {
+			logrus.Fatalf("Error starting a grpc server... %s", err.Error())
+		}
+	}()
+
+	logrus.Info("Almost ready, starting a controller loop to generate configs")
+
 	for i := 0; i < len(connectedClusters); i++ {
 		cfg, err := clientcmd.BuildConfigFromFlags("", connectedClusters[i].KubeconfigPath)
 		if err != nil {
-			log.Fatalf("Error building kubeconfig: %s", err.Error())
+			logrus.Fatalf("Error building kubeconfig: %s", err.Error())
 		}
 		kubeClient, err := kubernetes.NewForConfig(cfg)
 		if err != nil {
-			klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+			logrus.Fatalf("Error building kubernetes clientset: %s", err.Error())
 		}
 
 		crdClient, err := clientset.NewForConfig(cfg)
 		if err != nil {
-			log.Fatalf("Error building kubernetes crd clientset: %s", err.Error())
+			logrus.Fatalf("Error building kubernetes crd clientset: %s", err.Error())
 		}
 
 		locality := propsy.Locality{Zone: connectedClusters[i].Zone}
@@ -90,17 +98,7 @@ func main() {
 		controller.WaitForInitialSync(nil)
 	}
 
-	log.Print("Almost ready, starting a controller loop to generate configs")
-
 	cache.ProcessQueueOnce()
-
-	lis, _ := net.Listen("tcp", listenConfig)
-
-	go func() {
-		if err := propsy.GetGRPCServer().Serve(lis); err != nil {
-			logrus.Fatalf("Error starting a grpc server... %s", err.Error())
-		}
-	}()
 
 	// todo flip ready flag, the best we can do
 	cache.Run()

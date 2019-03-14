@@ -1,6 +1,8 @@
 package propsy
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -11,7 +13,9 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	"io/ioutil"
 	"time"
 )
 
@@ -32,20 +36,57 @@ func (h Hasher) ID(node *core.Node) string {
 }
 
 var LocalZone string
+var tlsVerifyCA string
+var tlsKey string
+var tlsCert string
 
 func init() {
-	snapshotCache = cache.NewSnapshotCache(false, Hasher{}, nil)
-	server = xds.NewServer(snapshotCache, nil)
-	grpcServer = grpc.NewServer()
-	discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
-	api.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
-	api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
-	api.RegisterRouteDiscoveryServiceServer(grpcServer, server)
-	api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
-
-	reflection.Register(grpcServer)
-
 	flag.StringVar(&LocalZone, "zone", "", "Local zone")
+	flag.StringVar(&tlsVerifyCA, "clientverifyca", "", "Verify CA")
+	flag.StringVar(&tlsCert, "servercert", "", "Server TLS Certificate")
+	flag.StringVar(&tlsKey, "serverkey", "", "Server TLS key")
+}
+
+func InitGRPCServer() {
+	if grpcServer == nil {
+		if tlsVerifyCA != "" && tlsKey != "" && tlsCert != "" {
+			logrus.Info("Setting up TLS")
+			certificate, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
+			if err != nil {
+				logrus.Panicf("Error creating a certificate: %s", err.Error())
+			}
+
+			certPool := x509.NewCertPool()
+			ca, err := ioutil.ReadFile(tlsVerifyCA)
+			if err != nil {
+				logrus.Panicf("Error reading a client TLS: %s", err.Error())
+			}
+
+			if ok := certPool.AppendCertsFromPEM(ca); !ok {
+				logrus.Panic("Error adding a client TLS CA!")
+			}
+
+			creds := credentials.NewTLS(&tls.Config{
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				Certificates: []tls.Certificate{certificate},
+				ClientCAs:    certPool,
+			})
+			grpcServer = grpc.NewServer(grpc.Creds(creds))
+		} else {
+			grpcServer = grpc.NewServer()
+		}
+
+		snapshotCache = cache.NewSnapshotCache(false, Hasher{}, nil)
+		server = xds.NewServer(snapshotCache, nil)
+		discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
+		api.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
+		api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
+		api.RegisterRouteDiscoveryServiceServer(grpcServer, server)
+		api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
+
+		reflection.Register(grpcServer)
+		logrus.Info("XDS registered")
+	}
 }
 
 func GetGRPCServer() *grpc.Server {
