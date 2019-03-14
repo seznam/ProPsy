@@ -1,12 +1,12 @@
 hash: edd1ddfa3e5bf4c63f4addf9e88c1735ac0bebfb0ce24738e07543ac68d2b860
-updated: 2019-01-08T15:07:46.642533378+01:00
+updated: 2019-03-14T08:34:25.357573192+01:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
   - spew
 - name: github.com/envoyproxy/go-control-plane
-  version: 8a91fb26f4e6553d2e21fa76e07d33b93a4f66e7
+  version: 0ad6fa1cf0b9b6ca8f3617a7188a568e81f40b87
   subpackages:
   - envoy/api/v2
   - envoy/api/v2/auth
@@ -17,6 +17,7 @@ imports:
   - envoy/api/v2/route
   - envoy/config/filter/accesslog/v2
   - envoy/config/filter/network/http_connection_manager/v2
+  - envoy/config/filter/network/tcp_proxy/v2
   - envoy/service/discovery/v2
   - envoy/type
   - pkg/cache
@@ -31,7 +32,7 @@ imports:
   - google/api
   - google/rpc
 - name: github.com/gogo/protobuf
-  version: 4cbf7e384e768b4e01799441fdf2a706a5635ae7
+  version: ba06b47c162d49f2af050fb4c75bcbc86a159d5c
   subpackages:
   - gogoproto
   - jsonpb
@@ -71,11 +72,11 @@ imports:
 - name: github.com/json-iterator/go
   version: ab8a2e0c74be9d3be70b3184d9acc634935ded82
 - name: github.com/konsorten/go-windows-terminal-sequences
-  version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
+  version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/kubernetes/client-go
   version: e64494209f554a6723674bd494d69445fb76a1d4
 - name: github.com/lyft/protoc-gen-validate
-  version: 7d810e6d5cad3664143ecc9f9ef4d5d6e0567787
+  version: 4349a359d42fdfee53b85dd5c89a2f169e1dc6b2
   subpackages:
   - validate
 - name: github.com/modern-go/concurrent
@@ -89,7 +90,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 583c0c0531f06d5278b7d917446061adc344b5cd
 - name: golang.org/x/crypto
-  version: de0752318171da717af4ce24d0a2e8626afaeb11
+  version: d172538b2cfce0c13cee31e647d0367aa8cd2486
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
@@ -111,10 +112,9 @@ imports:
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: 7fbe1cd0fcc20051e1fcb87fbabec4a1bacaaeba
+  version: fead79001313d15903fb4605b4a1b781532cd93e
   subpackages:
   - unix
-  - windows
 - name: golang.org/x/text
   version: b19bf474d317b857955b12035d2c5acb57ce8b01
   subpackages:
@@ -127,7 +127,7 @@ imports:
   subpackages:
   - rate
 - name: google.golang.org/appengine
-  version: e9657d882bb81064595ca3b56cbe2546bbabf7b1
+  version: 54a98f90d1c46b7731eb8fb305d2a321c30ef610
   subpackages:
   - internal
   - internal/base
@@ -137,7 +137,7 @@ imports:
   - internal/urlfetch
   - urlfetch
 - name: google.golang.org/genproto
-  version: bd9b4fb69e2ffd37621a6caa54dcbead29b546f2
+  version: 5fe7a883aa19554f42890211544aa549836af7b7
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -167,6 +167,8 @@ imports:
   - metadata
   - naming
   - peer
+  - reflection
+  - reflection/grpc_reflection_v1alpha
   - resolver
   - resolver/dns
   - resolver/passthrough
@@ -407,7 +409,7 @@ imports:
   - util/retry
   - util/workqueue
 - name: k8s.io/code-generator
-  version: 3a2206dd6a78497deceb3ae058417fdeb2036c7e
+  version: e4c2b1329cf785363b23612eebf93bb4c2affdb4
 - name: k8s.io/klog
   version: 8139d8cb77af419532b33dfa7dd09fbc5f1d344f
 - name: k8s.io/kube-openapi

@@ -39,6 +39,7 @@ type Server interface {
 	v2.RouteDiscoveryServiceServer
 	v2.ListenerDiscoveryServiceServer
 	discovery.AggregatedDiscoveryServiceServer
+	discovery.SecretDiscoveryServiceServer
 
 	// Fetch is the universal fetch method.
 	Fetch(context.Context, *v2.DiscoveryRequest) (*v2.DiscoveryResponse, error)
@@ -53,7 +54,8 @@ type Callbacks interface {
 	// OnStreamClosed is called immediately prior to closing an xDS stream with a stream ID.
 	OnStreamClosed(int64)
 	// OnStreamRequest is called once a request is received on a stream.
-	OnStreamRequest(int64, *v2.DiscoveryRequest)
+	// Returning an error will end processing and close the stream. OnStreamClosed will still be called.
+	OnStreamRequest(int64, *v2.DiscoveryRequest) error
 	// OnStreamResponse is called immediately prior to sending a response on a stream.
 	OnStreamResponse(int64, *v2.DiscoveryRequest, *v2.DiscoveryResponse)
 	// OnFetchRequest is called for each Fetch request. Returning an error will end processing of the
@@ -89,16 +91,19 @@ type watches struct {
 	clusters  chan cache.Response
 	routes    chan cache.Response
 	listeners chan cache.Response
+	secrets   chan cache.Response
 
 	endpointCancel func()
 	clusterCancel  func()
 	routeCancel    func()
 	listenerCancel func()
+	secretCancel   func()
 
 	endpointNonce string
 	clusterNonce  string
 	routeNonce    string
 	listenerNonce string
+	secretNonce   string
 }
 
 // Cancel all watches
@@ -114,6 +119,9 @@ func (values watches) Cancel() {
 	}
 	if values.listenerCancel != nil {
 		values.listenerCancel()
+	}
+	if values.secretCancel != nil {
+		values.secretCancel()
 	}
 }
 
@@ -223,6 +231,16 @@ func (s *server) process(stream stream, reqCh <-chan *v2.DiscoveryRequest, defau
 			}
 			values.listenerNonce = nonce
 
+		case resp, more := <-values.secrets:
+			if !more {
+				return status.Errorf(codes.Unavailable, "secrets watch failed")
+			}
+			nonce, err := send(resp, cache.SecretType)
+			if err != nil {
+				return err
+			}
+			values.secretNonce = nonce
+
 		case req, more := <-reqCh:
 			// input stream ended or errored out
 			if !more {
@@ -245,7 +263,9 @@ func (s *server) process(stream stream, reqCh <-chan *v2.DiscoveryRequest, defau
 			}
 
 			if s.callbacks != nil {
-				s.callbacks.OnStreamRequest(streamID, req)
+				if err := s.callbacks.OnStreamRequest(streamID, req); err != nil {
+					return err
+				}
 			}
 
 			// cancel existing watches to (re-)request a newer version
@@ -270,6 +290,11 @@ func (s *server) process(stream stream, reqCh <-chan *v2.DiscoveryRequest, defau
 					values.listenerCancel()
 				}
 				values.listeners, values.listenerCancel = s.cache.CreateWatch(*req)
+			case req.TypeUrl == cache.SecretType && (values.secretNonce == "" || values.secretNonce == nonce):
+				if values.secretCancel != nil {
+					values.secretCancel()
+				}
+				values.secrets, values.secretCancel = s.cache.CreateWatch(*req)
 			}
 		}
 	}
@@ -323,6 +348,10 @@ func (s *server) StreamListeners(stream v2.ListenerDiscoveryService_StreamListen
 	return s.handler(stream, cache.ListenerType)
 }
 
+func (s *server) StreamSecrets(stream discovery.SecretDiscoveryService_StreamSecretsServer) error {
+	return s.handler(stream, cache.SecretType)
+}
+
 // Fetch is the universal fetch method.
 func (s *server) Fetch(ctx context.Context, req *v2.DiscoveryRequest) (*v2.DiscoveryResponse, error) {
 	if s.callbacks != nil {
@@ -373,14 +402,22 @@ func (s *server) FetchListeners(ctx context.Context, req *v2.DiscoveryRequest) (
 	return s.Fetch(ctx, req)
 }
 
-func (s *server) IncrementalAggregatedResources(_ discovery.AggregatedDiscoveryService_IncrementalAggregatedResourcesServer) error {
+func (s *server) FetchSecrets(ctx context.Context, req *v2.DiscoveryRequest) (*v2.DiscoveryResponse, error) {
+	if req == nil {
+		return nil, status.Errorf(codes.Unavailable, "empty request")
+	}
+	req.TypeUrl = cache.SecretType
+	return s.Fetch(ctx, req)
+}
+
+func (s *server) DeltaAggregatedResources(_ discovery.AggregatedDiscoveryService_DeltaAggregatedResourcesServer) error {
 	return errors.New("not implemented")
 }
 
-func (s *server) IncrementalClusters(_ v2.ClusterDiscoveryService_IncrementalClustersServer) error {
+func (s *server) DeltaClusters(_ v2.ClusterDiscoveryService_DeltaClustersServer) error {
 	return errors.New("not implemented")
 }
 
-func (s *server) IncrementalRoutes(_ v2.RouteDiscoveryService_IncrementalRoutesServer) error {
+func (s *server) DeltaRoutes(_ v2.RouteDiscoveryService_DeltaRoutesServer) error {
 	return errors.New("not implemented")
 }

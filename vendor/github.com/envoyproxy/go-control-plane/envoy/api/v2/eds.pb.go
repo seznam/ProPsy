@@ -3,24 +3,24 @@
 
 package v2
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-import _type "github.com/envoyproxy/go-control-plane/envoy/type"
-import _ "github.com/gogo/googleapis/google/api"
-import _ "github.com/gogo/protobuf/gogoproto"
-import types "github.com/gogo/protobuf/types"
-import _ "github.com/lyft/protoc-gen-validate/validate"
-
-import bytes "bytes"
-
 import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
-)
+	bytes "bytes"
+	context "context"
+	fmt "fmt"
+	io "io"
+	math "math"
 
-import io "io"
+	_ "github.com/gogo/googleapis/google/api"
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
+	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+	types "github.com/gogo/protobuf/types"
+	_ "github.com/lyft/protoc-gen-validate/validate"
+	grpc "google.golang.org/grpc"
+
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	_type "github.com/envoyproxy/go-control-plane/envoy/type"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -49,6 +49,8 @@ type ClusterLoadAssignment struct {
 	ClusterName string `protobuf:"bytes,1,opt,name=cluster_name,json=clusterName,proto3" json:"cluster_name,omitempty"`
 	// List of endpoints to load balance to.
 	Endpoints []endpoint.LocalityLbEndpoints `protobuf:"bytes,2,rep,name=endpoints,proto3" json:"endpoints"`
+	// Map of named endpoints that can be referenced in LocalityLbEndpoints.
+	NamedEndpoints map[string]*endpoint.Endpoint `protobuf:"bytes,5,rep,name=named_endpoints,json=namedEndpoints,proto3" json:"named_endpoints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Load balancing policy settings.
 	Policy               *ClusterLoadAssignment_Policy `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
@@ -60,25 +62,21 @@ func (m *ClusterLoadAssignment) Reset()         { *m = ClusterLoadAssignment{} }
 func (m *ClusterLoadAssignment) String() string { return proto.CompactTextString(m) }
 func (*ClusterLoadAssignment) ProtoMessage()    {}
 func (*ClusterLoadAssignment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_eds_54f904bbf5198003, []int{0}
+	return fileDescriptor_3c8760f38742c17f, []int{0}
 }
 func (m *ClusterLoadAssignment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
 func (m *ClusterLoadAssignment) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_ClusterLoadAssignment.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
+	b = b[:cap(b)]
+	n, err := m.MarshalTo(b)
+	if err != nil {
+		return nil, err
 	}
+	return b[:n], nil
 }
-func (dst *ClusterLoadAssignment) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ClusterLoadAssignment.Merge(dst, src)
+func (m *ClusterLoadAssignment) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterLoadAssignment.Merge(m, src)
 }
 func (m *ClusterLoadAssignment) XXX_Size() int {
 	return m.Size()
@@ -99,6 +97,13 @@ func (m *ClusterLoadAssignment) GetClusterName() string {
 func (m *ClusterLoadAssignment) GetEndpoints() []endpoint.LocalityLbEndpoints {
 	if m != nil {
 		return m.Endpoints
+	}
+	return nil
+}
+
+func (m *ClusterLoadAssignment) GetNamedEndpoints() map[string]*endpoint.Endpoint {
+	if m != nil {
+		return m.NamedEndpoints
 	}
 	return nil
 }
@@ -156,25 +161,21 @@ func (m *ClusterLoadAssignment_Policy) Reset()         { *m = ClusterLoadAssignm
 func (m *ClusterLoadAssignment_Policy) String() string { return proto.CompactTextString(m) }
 func (*ClusterLoadAssignment_Policy) ProtoMessage()    {}
 func (*ClusterLoadAssignment_Policy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_eds_54f904bbf5198003, []int{0, 0}
+	return fileDescriptor_3c8760f38742c17f, []int{0, 1}
 }
 func (m *ClusterLoadAssignment_Policy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
 func (m *ClusterLoadAssignment_Policy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_ClusterLoadAssignment_Policy.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
+	b = b[:cap(b)]
+	n, err := m.MarshalTo(b)
+	if err != nil {
+		return nil, err
 	}
+	return b[:n], nil
 }
-func (dst *ClusterLoadAssignment_Policy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ClusterLoadAssignment_Policy.Merge(dst, src)
+func (m *ClusterLoadAssignment_Policy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterLoadAssignment_Policy.Merge(m, src)
 }
 func (m *ClusterLoadAssignment_Policy) XXX_Size() int {
 	return m.Size()
@@ -215,25 +216,21 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Reset() {
 func (m *ClusterLoadAssignment_Policy_DropOverload) String() string { return proto.CompactTextString(m) }
 func (*ClusterLoadAssignment_Policy_DropOverload) ProtoMessage()    {}
 func (*ClusterLoadAssignment_Policy_DropOverload) Descriptor() ([]byte, []int) {
-	return fileDescriptor_eds_54f904bbf5198003, []int{0, 0, 0}
+	return fileDescriptor_3c8760f38742c17f, []int{0, 1, 0}
 }
 func (m *ClusterLoadAssignment_Policy_DropOverload) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
 func (m *ClusterLoadAssignment_Policy_DropOverload) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_ClusterLoadAssignment_Policy_DropOverload.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
+	b = b[:cap(b)]
+	n, err := m.MarshalTo(b)
+	if err != nil {
+		return nil, err
 	}
+	return b[:n], nil
 }
-func (dst *ClusterLoadAssignment_Policy_DropOverload) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ClusterLoadAssignment_Policy_DropOverload.Merge(dst, src)
+func (m *ClusterLoadAssignment_Policy_DropOverload) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterLoadAssignment_Policy_DropOverload.Merge(m, src)
 }
 func (m *ClusterLoadAssignment_Policy_DropOverload) XXX_Size() int {
 	return m.Size()
@@ -260,9 +257,58 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) GetDropPercentage() *_type.F
 
 func init() {
 	proto.RegisterType((*ClusterLoadAssignment)(nil), "envoy.api.v2.ClusterLoadAssignment")
+	proto.RegisterMapType((map[string]*endpoint.Endpoint)(nil), "envoy.api.v2.ClusterLoadAssignment.NamedEndpointsEntry")
 	proto.RegisterType((*ClusterLoadAssignment_Policy)(nil), "envoy.api.v2.ClusterLoadAssignment.Policy")
 	proto.RegisterType((*ClusterLoadAssignment_Policy_DropOverload)(nil), "envoy.api.v2.ClusterLoadAssignment.Policy.DropOverload")
 }
+
+func init() { proto.RegisterFile("envoy/api/v2/eds.proto", fileDescriptor_3c8760f38742c17f) }
+
+var fileDescriptor_3c8760f38742c17f = []byte{
+	// 655 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x94, 0x41, 0x6b, 0xd4, 0x40,
+	0x14, 0xc7, 0x3b, 0xd9, 0x6d, 0x69, 0xa7, 0xb5, 0x2d, 0x51, 0xdb, 0x10, 0xd6, 0x74, 0x59, 0x14,
+	0x4a, 0x91, 0x44, 0xb6, 0x48, 0xa5, 0x17, 0x71, 0x6d, 0x17, 0x94, 0x52, 0x97, 0x14, 0xc5, 0x93,
+	0xeb, 0x6c, 0x32, 0x8d, 0x83, 0xd9, 0x99, 0x71, 0x32, 0x1b, 0xcd, 0xc1, 0x8b, 0x27, 0xef, 0x7e,
+	0x09, 0x3f, 0x83, 0x27, 0x8f, 0xbd, 0x29, 0x78, 0xf1, 0x24, 0xb2, 0x78, 0x11, 0x4f, 0x7e, 0x03,
+	0x49, 0x32, 0x49, 0x37, 0x76, 0x0b, 0x1e, 0xbc, 0xbd, 0xcc, 0x7b, 0xef, 0xf7, 0xde, 0xfc, 0xe7,
+	0xbd, 0xc0, 0x35, 0x4c, 0x63, 0x96, 0x38, 0x88, 0x13, 0x27, 0x6e, 0x3b, 0xd8, 0x8f, 0x6c, 0x2e,
+	0x98, 0x64, 0xfa, 0x52, 0x76, 0x6e, 0x23, 0x4e, 0xec, 0xb8, 0x6d, 0x36, 0x2a, 0x51, 0x3e, 0x89,
+	0x3c, 0x16, 0x63, 0x91, 0xe4, 0xb1, 0xe6, 0xd5, 0x2a, 0x83, 0xfa, 0x9c, 0x11, 0x2a, 0x4b, 0x43,
+	0x45, 0x19, 0x79, 0x94, 0x4c, 0x38, 0x76, 0x38, 0x16, 0x1e, 0x2e, 0x3d, 0x8d, 0x80, 0xb1, 0x20,
+	0xc4, 0x19, 0x00, 0x51, 0xca, 0x24, 0x92, 0x84, 0x51, 0xd5, 0x89, 0xb9, 0x1e, 0xa3, 0x90, 0xf8,
+	0x48, 0x62, 0xa7, 0x30, 0x94, 0xe3, 0x52, 0xc0, 0x02, 0x96, 0x99, 0x4e, 0x6a, 0xa9, 0x53, 0x4b,
+	0xc1, 0xb2, 0xaf, 0xc1, 0xe8, 0xd8, 0x79, 0x29, 0x10, 0xe7, 0x58, 0x28, 0x5c, 0xeb, 0xf7, 0x2c,
+	0xbc, 0x7c, 0x37, 0x1c, 0x45, 0x12, 0x8b, 0x03, 0x86, 0xfc, 0x3b, 0x51, 0x44, 0x02, 0x3a, 0xc4,
+	0x54, 0xea, 0xd7, 0xe1, 0x92, 0x97, 0x3b, 0xfa, 0x14, 0x0d, 0xb1, 0x01, 0x9a, 0x60, 0x73, 0xa1,
+	0xb3, 0xf0, 0xe1, 0xe7, 0xc7, 0x5a, 0x5d, 0x68, 0x4d, 0xe0, 0x2e, 0x2a, 0xf7, 0x21, 0x1a, 0x62,
+	0xfd, 0x10, 0x2e, 0x14, 0x17, 0x8c, 0x0c, 0xad, 0x59, 0xdb, 0x5c, 0x6c, 0x6f, 0xd9, 0x93, 0xa2,
+	0xd9, 0xe5, 0xfd, 0x0f, 0x98, 0x87, 0x42, 0x22, 0x93, 0x83, 0xc1, 0x7e, 0x91, 0xd1, 0xa9, 0x9f,
+	0x7c, 0xdb, 0x98, 0x71, 0x4f, 0x11, 0xfa, 0x53, 0xb8, 0x92, 0x56, 0xf5, 0xfb, 0xa7, 0xd4, 0xd9,
+	0x8c, 0xba, 0x53, 0xa5, 0x4e, 0xed, 0xdd, 0x4e, 0x5b, 0xf2, 0x4b, 0xfa, 0x3e, 0x95, 0x22, 0x71,
+	0x97, 0x69, 0xe5, 0x50, 0xef, 0xc0, 0x39, 0xce, 0x42, 0xe2, 0x25, 0x46, 0xbd, 0x09, 0xce, 0xb6,
+	0x3b, 0x1d, 0xdc, 0xcb, 0x32, 0x5c, 0x95, 0x69, 0x0e, 0xe0, 0xc5, 0x29, 0xa5, 0xf4, 0x55, 0x58,
+	0x7b, 0x8e, 0x93, 0x5c, 0x31, 0x37, 0x35, 0xf5, 0x9b, 0x70, 0x36, 0x46, 0xe1, 0x08, 0x1b, 0x5a,
+	0x56, 0x6b, 0xe3, 0x1c, 0x69, 0x0a, 0x8e, 0x9b, 0x47, 0xef, 0x6a, 0xb7, 0x80, 0xf9, 0x49, 0x83,
+	0x73, 0x79, 0x59, 0xfd, 0x09, 0x5c, 0xf6, 0x05, 0xe3, 0xfd, 0x74, 0xda, 0x42, 0x86, 0xfc, 0x42,
+	0xe9, 0x9d, 0x7f, 0x6f, 0xdd, 0xde, 0x13, 0x8c, 0x3f, 0x50, 0xf9, 0xee, 0x05, 0x7f, 0xe2, 0x2b,
+	0x15, 0x7d, 0x3d, 0x45, 0x73, 0xc1, 0x62, 0x12, 0x11, 0x46, 0x09, 0x0d, 0xfa, 0xc7, 0xc8, 0x93,
+	0x4c, 0x18, 0xb5, 0xac, 0xef, 0x86, 0x9d, 0x8f, 0x93, 0x5d, 0x8c, 0x93, 0xfd, 0xf0, 0x1e, 0x95,
+	0xdb, 0xed, 0x47, 0x69, 0xb7, 0x6a, 0x36, 0xb6, 0xb4, 0xe6, 0x8c, 0xbb, 0xf6, 0x37, 0xa7, 0x9b,
+	0x61, 0xcc, 0xd7, 0x70, 0x69, 0xb2, 0x01, 0xfd, 0x1a, 0x9c, 0xf7, 0x90, 0xc4, 0x01, 0x13, 0xc9,
+	0xd9, 0x01, 0x2b, 0x5d, 0x7a, 0x17, 0xae, 0x64, 0x17, 0x57, 0x8b, 0x82, 0x82, 0x42, 0xc8, 0x2b,
+	0xea, 0xe6, 0xe9, 0x1a, 0xd9, 0x5d, 0x81, 0xbc, 0x74, 0x55, 0x50, 0xd8, 0xcb, 0xe3, 0xdc, 0x4c,
+	0xae, 0x5e, 0x99, 0x74, 0xbf, 0x3e, 0x0f, 0x56, 0xb5, 0xf6, 0x2f, 0x00, 0x8d, 0x42, 0xe9, 0xbd,
+	0x62, 0x79, 0x8f, 0xb0, 0x88, 0x89, 0x87, 0xf5, 0xc7, 0x70, 0xe5, 0x48, 0x0a, 0x8c, 0x86, 0xa7,
+	0x93, 0x62, 0x55, 0xe5, 0x2d, 0x53, 0x5c, 0xfc, 0x62, 0x84, 0x23, 0x69, 0x6e, 0x9c, 0xeb, 0x8f,
+	0x38, 0xa3, 0x11, 0x6e, 0xcd, 0x6c, 0x82, 0x1b, 0x40, 0x1f, 0xc1, 0xe5, 0x2e, 0x96, 0xde, 0xb3,
+	0xff, 0x08, 0x6e, 0xbd, 0xf9, 0xf2, 0xe3, 0x9d, 0xd6, 0x68, 0xad, 0x57, 0xfe, 0x43, 0xbb, 0xe5,
+	0xce, 0xec, 0x82, 0xad, 0xce, 0xed, 0xf7, 0x63, 0x0b, 0x9c, 0x8c, 0x2d, 0xf0, 0x79, 0x6c, 0x81,
+	0xaf, 0x63, 0x0b, 0x7c, 0x1f, 0x5b, 0x00, 0x9a, 0x84, 0xe5, 0x70, 0x2e, 0xd8, 0xab, 0xa4, 0x52,
+	0xa7, 0x33, 0xbf, 0xef, 0x47, 0xbd, 0xf4, 0x81, 0x7b, 0xe0, 0x2d, 0x00, 0x83, 0xb9, 0xec, 0xb1,
+	0xb7, 0xff, 0x04, 0x00, 0x00, 0xff, 0xff, 0xb8, 0x7c, 0xcf, 0xf4, 0x1c, 0x05, 0x00, 0x00,
+}
+
 func (this *ClusterLoadAssignment) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -290,6 +336,14 @@ func (this *ClusterLoadAssignment) Equal(that interface{}) bool {
 	}
 	for i := range this.Endpoints {
 		if !this.Endpoints[i].Equal(&that1.Endpoints[i]) {
+			return false
+		}
+	}
+	if len(this.NamedEndpoints) != len(that1.NamedEndpoints) {
+		return false
+	}
+	for i := range this.NamedEndpoints {
+		if !this.NamedEndpoints[i].Equal(that1.NamedEndpoints[i]) {
 			return false
 		}
 	}
@@ -552,6 +606,39 @@ func (m *ClusterLoadAssignment) MarshalTo(dAtA []byte) (int, error) {
 		}
 		i += n1
 	}
+	if len(m.NamedEndpoints) > 0 {
+		keysForNamedEndpoints := make([]string, 0, len(m.NamedEndpoints))
+		for k, _ := range m.NamedEndpoints {
+			keysForNamedEndpoints = append(keysForNamedEndpoints, string(k))
+		}
+		github_com_gogo_protobuf_sortkeys.Strings(keysForNamedEndpoints)
+		for _, k := range keysForNamedEndpoints {
+			dAtA[i] = 0x2a
+			i++
+			v := m.NamedEndpoints[string(k)]
+			msgSize := 0
+			if v != nil {
+				msgSize = v.Size()
+				msgSize += 1 + sovEds(uint64(msgSize))
+			}
+			mapSize := 1 + len(k) + sovEds(uint64(len(k))) + msgSize
+			i = encodeVarintEds(dAtA, i, uint64(mapSize))
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintEds(dAtA, i, uint64(len(k)))
+			i += copy(dAtA[i:], k)
+			if v != nil {
+				dAtA[i] = 0x12
+				i++
+				i = encodeVarintEds(dAtA, i, uint64(v.Size()))
+				n2, err := v.MarshalTo(dAtA[i:])
+				if err != nil {
+					return 0, err
+				}
+				i += n2
+			}
+		}
+	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
 	}
@@ -589,11 +676,11 @@ func (m *ClusterLoadAssignment_Policy) MarshalTo(dAtA []byte) (int, error) {
 		dAtA[i] = 0x1a
 		i++
 		i = encodeVarintEds(dAtA, i, uint64(m.OverprovisioningFactor.Size()))
-		n2, err := m.OverprovisioningFactor.MarshalTo(dAtA[i:])
+		n3, err := m.OverprovisioningFactor.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n2
+		i += n3
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
@@ -626,11 +713,11 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) MarshalTo(dAtA []byte) (int,
 		dAtA[i] = 0x12
 		i++
 		i = encodeVarintEds(dAtA, i, uint64(m.DropPercentage.Size()))
-		n3, err := m.DropPercentage.MarshalTo(dAtA[i:])
+		n4, err := m.DropPercentage.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n3
+		i += n4
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
@@ -666,6 +753,19 @@ func (m *ClusterLoadAssignment) Size() (n int) {
 	if m.Policy != nil {
 		l = m.Policy.Size()
 		n += 1 + l + sovEds(uint64(l))
+	}
+	if len(m.NamedEndpoints) > 0 {
+		for k, v := range m.NamedEndpoints {
+			_ = k
+			_ = v
+			l = 0
+			if v != nil {
+				l = v.Size()
+				l += 1 + sovEds(uint64(l))
+			}
+			mapEntrySize := 1 + len(k) + sovEds(uint64(len(k))) + l
+			n += mapEntrySize + 1 + sovEds(uint64(mapEntrySize))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -743,7 +843,7 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -771,7 +871,7 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -781,6 +881,9 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -800,7 +903,7 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -809,6 +912,9 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -831,7 +937,7 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -840,6 +946,9 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -850,6 +959,135 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamedEndpoints", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEds
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEds
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.NamedEndpoints == nil {
+				m.NamedEndpoints = make(map[string]*endpoint.Endpoint)
+			}
+			var mapkey string
+			var mapvalue *endpoint.Endpoint
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowEds
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowEds
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthEds
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthEds
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var mapmsglen int
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowEds
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapmsglen |= int(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					if mapmsglen < 0 {
+						return ErrInvalidLengthEds
+					}
+					postmsgIndex := iNdEx + mapmsglen
+					if postmsgIndex < 0 {
+						return ErrInvalidLengthEds
+					}
+					if postmsgIndex > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = &endpoint.Endpoint{}
+					if err := mapvalue.Unmarshal(dAtA[iNdEx:postmsgIndex]); err != nil {
+						return err
+					}
+					iNdEx = postmsgIndex
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipEds(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthEds
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.NamedEndpoints[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipEds(dAtA[iNdEx:])
@@ -857,6 +1095,9 @@ func (m *ClusterLoadAssignment) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthEds
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthEds
 			}
 			if (iNdEx + skippy) > l {
@@ -887,7 +1128,7 @@ func (m *ClusterLoadAssignment_Policy) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -915,7 +1156,7 @@ func (m *ClusterLoadAssignment_Policy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -924,6 +1165,9 @@ func (m *ClusterLoadAssignment_Policy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -946,7 +1190,7 @@ func (m *ClusterLoadAssignment_Policy) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -955,6 +1199,9 @@ func (m *ClusterLoadAssignment_Policy) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -972,6 +1219,9 @@ func (m *ClusterLoadAssignment_Policy) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthEds
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthEds
 			}
 			if (iNdEx + skippy) > l {
@@ -1002,7 +1252,7 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Unmarshal(dAtA []byte) error
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -1030,7 +1280,7 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Unmarshal(dAtA []byte) error
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1040,6 +1290,9 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Unmarshal(dAtA []byte) error
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1059,7 +1312,7 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Unmarshal(dAtA []byte) error
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= (int(b) & 0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1068,6 +1321,9 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Unmarshal(dAtA []byte) error
 				return ErrInvalidLengthEds
 			}
 			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEds
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -1085,6 +1341,9 @@ func (m *ClusterLoadAssignment_Policy_DropOverload) Unmarshal(dAtA []byte) error
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthEds
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthEds
 			}
 			if (iNdEx + skippy) > l {
@@ -1154,8 +1413,11 @@ func skipEds(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthEds
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthEds
 			}
 			return iNdEx, nil
@@ -1186,6 +1448,9 @@ func skipEds(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthEds
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -1204,45 +1469,3 @@ var (
 	ErrInvalidLengthEds = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowEds   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() { proto.RegisterFile("envoy/api/v2/eds.proto", fileDescriptor_eds_54f904bbf5198003) }
-
-var fileDescriptor_eds_54f904bbf5198003 = []byte{
-	// 562 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x53, 0x41, 0x8b, 0xd3, 0x40,
-	0x14, 0xde, 0xc9, 0x96, 0x65, 0x77, 0xb6, 0xee, 0x4a, 0xd4, 0x6d, 0x08, 0x35, 0x5b, 0x8a, 0x42,
-	0x29, 0x92, 0x48, 0xf7, 0x20, 0xec, 0xcd, 0xba, 0x16, 0x94, 0xb2, 0x96, 0x2c, 0x8a, 0x27, 0xeb,
-	0x34, 0x79, 0x1b, 0x07, 0xd2, 0x99, 0x71, 0x32, 0x8d, 0xe4, 0xe0, 0xc5, 0x93, 0x77, 0xff, 0x84,
-	0xe0, 0x3f, 0xf0, 0xe4, 0x71, 0x6f, 0x0a, 0xde, 0x45, 0x8a, 0x17, 0xf1, 0x4f, 0x48, 0x93, 0x49,
-	0x6c, 0x5d, 0x05, 0x0f, 0xde, 0x5e, 0xe6, 0x7b, 0xdf, 0xc7, 0xf7, 0xde, 0xf7, 0x82, 0xf7, 0x80,
-	0xa5, 0x3c, 0xf3, 0x88, 0xa0, 0x5e, 0xda, 0xf3, 0x20, 0x4c, 0x5c, 0x21, 0xb9, 0xe2, 0x66, 0x3d,
-	0x7f, 0x77, 0x89, 0xa0, 0x6e, 0xda, 0xb3, 0x9b, 0x2b, 0x5d, 0x21, 0x4d, 0x02, 0x9e, 0x82, 0xcc,
-	0x8a, 0x5e, 0xfb, 0xda, 0xaa, 0x06, 0x0b, 0x05, 0xa7, 0x4c, 0x55, 0x85, 0xee, 0xb2, 0x8a, 0x2e,
-	0x95, 0x09, 0xf0, 0x04, 0xc8, 0x00, 0x2a, 0xa4, 0x19, 0x71, 0x1e, 0xc5, 0x90, 0x0b, 0x10, 0xc6,
-	0xb8, 0x22, 0x8a, 0x72, 0xa6, 0x9d, 0xd8, 0x8d, 0x94, 0xc4, 0x34, 0x24, 0x0a, 0xbc, 0xb2, 0xd0,
-	0xc0, 0xe5, 0x88, 0x47, 0x3c, 0x2f, 0xbd, 0x45, 0xa5, 0x5f, 0x1d, 0x2d, 0x96, 0x7f, 0x4d, 0x66,
-	0xa7, 0xde, 0x0b, 0x49, 0x84, 0x00, 0xa9, 0xe5, 0xda, 0xef, 0x6a, 0xf8, 0xca, 0x9d, 0x78, 0x96,
-	0x28, 0x90, 0x43, 0x4e, 0xc2, 0xdb, 0x49, 0x42, 0x23, 0x36, 0x05, 0xa6, 0xcc, 0x1b, 0xb8, 0x1e,
-	0x14, 0xc0, 0x98, 0x91, 0x29, 0x58, 0xa8, 0x85, 0x3a, 0x5b, 0xfd, 0xad, 0xf7, 0xdf, 0x3f, 0xac,
-	0xd7, 0xa4, 0xd1, 0x42, 0xfe, 0xb6, 0x86, 0x8f, 0xc9, 0x14, 0xcc, 0x63, 0xbc, 0x55, 0x0e, 0x98,
-	0x58, 0x46, 0x6b, 0xbd, 0xb3, 0xdd, 0xeb, 0xba, 0xcb, 0x4b, 0x73, 0xab, 0xf9, 0x87, 0x3c, 0x20,
-	0x31, 0x55, 0xd9, 0x70, 0x72, 0xb7, 0x64, 0xf4, 0x6b, 0x67, 0x5f, 0xf6, 0xd7, 0xfc, 0x5f, 0x12,
-	0x66, 0x1f, 0x6f, 0x08, 0x1e, 0xd3, 0x20, 0xb3, 0x6a, 0x2d, 0x74, 0x5e, 0xec, 0x8f, 0x96, 0xdd,
-	0x51, 0xce, 0xf0, 0x35, 0xd3, 0xfe, 0x68, 0xe0, 0x8d, 0xe2, 0xc9, 0x7c, 0x82, 0x77, 0x42, 0xc9,
-	0xc5, 0x78, 0x91, 0x53, 0xcc, 0x49, 0x58, 0x7a, 0xbc, 0xf5, 0xef, 0xb2, 0xee, 0x91, 0xe4, 0xe2,
-	0x81, 0xe6, 0xfb, 0x17, 0xc2, 0xa5, 0xaf, 0xc4, 0x7c, 0x8a, 0x1b, 0x0b, 0x69, 0x21, 0x79, 0x4a,
-	0x13, 0xca, 0x19, 0x65, 0xd1, 0xf8, 0x94, 0x04, 0x8a, 0x4b, 0x6b, 0x3d, 0xf7, 0xdf, 0x74, 0x8b,
-	0x20, 0xdc, 0x32, 0x08, 0xf7, 0xe1, 0x3d, 0xa6, 0x0e, 0x7a, 0x8f, 0x48, 0x3c, 0x03, 0xbd, 0xd5,
-	0xae, 0xd1, 0x5a, 0xf3, 0xf7, 0x7e, 0xd7, 0x19, 0xe4, 0x32, 0xf6, 0x4b, 0x5c, 0x5f, 0x36, 0x60,
-	0x5e, 0xc7, 0x9b, 0x01, 0x51, 0x10, 0x71, 0x99, 0x9d, 0x8f, 0xa6, 0x82, 0xcc, 0x01, 0xde, 0xcd,
-	0x07, 0xd7, 0x27, 0x46, 0x22, 0xb0, 0x8c, 0xdc, 0xd0, 0x55, 0x3d, 0xf9, 0xe2, 0x00, 0xdd, 0x81,
-	0x24, 0xc1, 0xe2, 0xc8, 0x48, 0x3c, 0x2a, 0xfa, 0xfc, 0x7c, 0x5d, 0xa3, 0x8a, 0x74, 0xbf, 0xb6,
-	0x89, 0x2e, 0x1a, 0xbd, 0x1f, 0x08, 0x5b, 0x65, 0x68, 0x47, 0xe5, 0xd9, 0x9f, 0x80, 0x4c, 0x69,
-	0x00, 0xe6, 0x63, 0xbc, 0x7b, 0xa2, 0x24, 0x90, 0x69, 0x15, 0xab, 0xe9, 0xac, 0xae, 0xb7, 0xa2,
-	0xf8, 0xf0, 0x7c, 0x06, 0x89, 0xb2, 0xf7, 0xff, 0x8a, 0x27, 0x82, 0xb3, 0x04, 0xda, 0x6b, 0x1d,
-	0x74, 0x13, 0x99, 0x33, 0xbc, 0x33, 0x00, 0x15, 0x3c, 0xfb, 0x8f, 0xc2, 0xed, 0x57, 0x9f, 0xbf,
-	0xbd, 0x31, 0x9a, 0xed, 0xc6, 0xca, 0x1f, 0x7c, 0x58, 0x1d, 0xe0, 0x21, 0xea, 0xf6, 0x2f, 0xbd,
-	0x9d, 0x3b, 0xe8, 0x6c, 0xee, 0xa0, 0x4f, 0x73, 0x07, 0x7d, 0x9d, 0x3b, 0xe8, 0x35, 0x42, 0x93,
-	0x8d, 0x3c, 0xc0, 0x83, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x05, 0x1a, 0x1d, 0x66, 0x2a, 0x04,
-	0x00, 0x00,
-}
