@@ -21,18 +21,21 @@ func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
 		healthStatus = core.HealthStatus_UNHEALTHY
 	}
 	return endpoint.LbEndpoint{
-		Endpoint: &endpoint.Endpoint{
-			Address: &core.Address{
-				Address: &core.Address_SocketAddress{
-					SocketAddress: &core.SocketAddress{
-						Address: E.Host,
-						PortSpecifier: &core.SocketAddress_PortValue{
-							PortValue: uint32(port),
+		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+			Endpoint: &endpoint.Endpoint{
+				Address: &core.Address{
+					Address: &core.Address_SocketAddress{
+						SocketAddress: &core.SocketAddress{
+							Address: E.Host,
+							PortSpecifier: &core.SocketAddress_PortValue{
+								PortValue: uint32(port),
+							},
 						},
 					},
 				},
 			},
 		},
+
 		HealthStatus: healthStatus,
 	}
 }
@@ -151,7 +154,9 @@ func ClusterToEnvoy(targetName string, connectTimeout int) *v2.Cluster {
 	return &v2.Cluster{
 		Name:           targetName,
 		ConnectTimeout: time.Duration(connectTimeout) * time.Millisecond,
-		Type:           v2.Cluster_EDS,
+		ClusterDiscoveryType: &v2.Cluster_Type{
+			Type: v2.Cluster_EDS,
+		},
 		EdsClusterConfig: &v2.Cluster_EdsClusterConfig{
 			ServiceName: targetName,
 			EdsConfig: &core.ConfigSource{
