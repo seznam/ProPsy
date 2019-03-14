@@ -20,6 +20,7 @@ spec:
   timeout: 800
   type: HTTP
   path: /miniapps/
+  tlsCertificateSecret: test-locality-tls
 ```
 What this will create is:
 - Listener on 0:4205 (any interface/IP, port 4205)
@@ -29,16 +30,20 @@ What this will create is:
 - Set connect timeout to 800ms
 - Proxy as HTTP traffic
 - Set path prefix to /miniapps/
+- Serve as HTTPS with cert from secret `test-locality-tls` from the same namespace
 - distribute this config to nodes that are named `my-proxy` and nowhere else
 
 Now it is time to start the ProPsy daemon itself (can be within k8s cluster or outside):
 ```
-./propsy-bin -listen ":9999" -zone ko -debug -cluster /home/ashley/kubeconfig-propsy-ko.yaml:ko -cluster /home/ashley/kubeconfig-propsy-ng.yaml:ng
+./propsy-bin -listen ":9999" -zone ko -debug -clientverifyca cert/client-ca.pem -servercert cert/server.pem -serverkey cert/server-key.pem -cluster /home/ashley/kubeconfig-propsy-ko.yaml:ko -cluster /home/ashley/kubeconfig-propsy-ng.yaml:ng
 ```
 Flags:
 - listen: obvious, on which IP/port to listen (default `:8888`)
 - zone: local zone, preferred traffic goes to there (more useful than setting it on Envoy side as there is some logic not implemented and just missing)
 - debug: allow debug output (not required)
+- clientverifyca: Path to CA that will be used to verify incoming requests for valid clients
+- servercert: Path to CERT file that will be used for the gRPC server
+- serverkey: Path to KEY file that will be used for the gRPC server (note that all the 3 TLS options need to be set to allow any form of TLS!)
 - cluster: multiple pairs of `<path to kubeconfig>:<cluster name>`. Please note, that at least one cluster name should match the zone as it will be considered as `local zone` for preferred traffic weights.
 
 Now you need to actually start your Envoy instance. There is, however, one requirement: the discovery cluster must be called `xds_cluster` as it is what the ProPsy distributes as upstream discovery cluster for endpoints.
@@ -80,6 +85,13 @@ static_resources:
   - name: xds_cluster
     connect_timeout: 0.25s
     type: STATIC
+    tls_context:
+      common_tls_context:
+        tls_certificates:
+        - certificate_chain: { "filename": "/config/cert/localhost.pem" }
+          private_key: { "filename": "/config/cert/localhost-key.pem" }
+        validation_context:
+          trusted_ca: { "filename": "/config/cert/server-ca.pem" }
     lb_policy: ROUND_ROBIN
     http2_protocol_options: {}
     commonLbConfig:
@@ -105,13 +117,13 @@ And launch it as
 /www/adm/envoy/sbin/envoy --config-path /www/adm/envoy/conf/envoy.yaml --service-cluster xds_cluster --service-zone ko --v2-config-only -l info
 ```
 
-And you should be done! :) 
+And you should be done! :)
 
 ## FAQ 
 ### Multi-clustering
 ProPsy supports running across multiple clusters. How, do you ask? Try creating a PPS with the **same** name+namespace in the other locality. Suddenly you can control traffic. 
 
-Note, that the main locality controls the service's type (HTTP, TCP) and % of the traffic. Setting 50% of traffic in the other locality has no effect, just as setting canary zone in the other locality.
+Note, that the main locality controls the service's type (HTTP, TCP), possible TLS certificate and % of the traffic. Setting 50% of traffic in the other locality has no effect, just as setting canary zone in the other locality.
 
 ### Weights Example
 Cluster A: (local zone)
