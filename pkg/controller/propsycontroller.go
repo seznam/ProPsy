@@ -33,6 +33,10 @@ type ProPsyController struct {
 	endpointLister       listerv1.EndpointsLister
 	endpointListerSynced cache.InformerSynced
 
+	secretGetter       corev1.SecretsGetter
+	secretLister       listerv1.SecretLister
+	secretListerSynced cache.InformerSynced
+
 	ppsGetter       ppsv1.ProPsyServicesGetter
 	ppsLister       ppslisterv1.ProPsyServiceLister
 	ppsListerSynced cache.InformerSynced
@@ -41,6 +45,7 @@ type ProPsyController struct {
 func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsyclient.Interface, locality *propsy.Locality, ppsCache *propsy.ProPsyCache) (*ProPsyController, error) {
 	sharedInformers := informers.NewSharedInformerFactory(endpointClient, 10*time.Second)
 	endpointInformer := sharedInformers.Core().V1().Endpoints()
+	secretInformer := sharedInformers.Core().V1().Secrets()
 
 	var propsy ProPsyController
 
@@ -55,6 +60,10 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 			endpointGetter:       endpointClient.CoreV1(),
 			endpointLister:       endpointInformer.Lister(),
 			endpointListerSynced: endpointInformer.Informer().HasSynced,
+
+			secretGetter:       endpointClient.CoreV1(),
+			secretLister:       secretInformer.Lister(),
+			secretListerSynced: secretInformer.Informer().HasSynced,
 
 			ppsGetter:       crdClient.PropsyV1(),
 			ppsLister:       propsyInformer.Lister(),
@@ -85,6 +94,10 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 			endpointGetter:       endpointClient.CoreV1(),
 			endpointLister:       endpointInformer.Lister(),
 			endpointListerSynced: endpointInformer.Informer().HasSynced,
+
+			secretGetter:       endpointClient.CoreV1(),
+			secretLister:       secretInformer.Lister(),
+			secretListerSynced: secretInformer.Informer().HasSynced,
 		}
 	}
 
@@ -102,6 +115,20 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 		},
 	)
 
+	secretInformer.Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				propsy.SecretAdded(obj.(*v1.Secret))
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				propsy.SecretChanged(oldObj.(*v1.Secret), newObj.(*v1.Secret))
+			},
+			DeleteFunc: func(obj interface{}) {
+				propsy.SecretRemoved(obj.(*v1.Secret))
+			},
+		},
+	)
+
 	sharedInformers.Start(nil)
 
 	return &propsy, nil
@@ -114,6 +141,32 @@ func (C *ProPsyController) WaitForInitialSync(stop <-chan struct{}) {
 	}
 
 	log.Print("Finished syncing initial cache")
+}
+
+func (C *ProPsyController) SecretAdded(secret *v1.Secret) {
+	logrus.Debugf("Secret added: %s:%s", secret.Namespace, secret.Name)
+	C.ppsCache.UpdateTLS(secret.Namespace, secret.Name, secret.Data["tls.crt"], secret.Data["tls.key"])
+}
+
+func (C *ProPsyController) SecretRemoved(secret *v1.Secret) {
+	logrus.Debugf("Secret removed: %s:%s", secret.Namespace, secret.Name)
+	C.ppsCache.UpdateTLS(secret.Namespace, secret.Name, []byte{}, []byte{})
+}
+
+func (C *ProPsyController) SecretChanged(old, new *v1.Secret) {
+	if reflect.DeepEqual(old, new) {
+		return
+	}
+
+	logrus.Debugf("Secret changed: %s:%s", new.Namespace, new.Name)
+	C.SecretAdded(new) // just overwrite with the new one
+}
+
+func (C *ProPsyController) ResyncTLS(namespace, name string) {
+	secret, err := C.secretGetter.Secrets(namespace).Get(name, v12.GetOptions{})
+	if err == nil {
+		C.SecretAdded(secret)
+	}
 }
 
 func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
@@ -243,6 +296,12 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 	vhostName := propsy.GenerateVHostName(domains)
 	listenerName := propsy.GenerateListenerName(pps.Spec.Listen, propsyType)
 
+	var tlsData *propsy.TlsData = nil
+	if pps.Spec.TLSCertificateSecret != "" {
+		tlsData = C.ppsCache.GetOrCreateTLS(pps.Namespace, pps.Spec.TLSCertificateSecret)
+		C.ResyncTLS(pps.Namespace, pps.Spec.TLSCertificateSecret)
+	}
+
 	return &propsy.ListenerConfig{
 		Name:   listenerName,
 		Listen: pps.Spec.Listen,
@@ -253,6 +312,7 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 		}},
 		Type:            propsyType,
 		TrackedLocality: C.locality.Zone,
+		TLSSecret:       tlsData,
 	}
 }
 
@@ -292,6 +352,9 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 
 	for node := range nodes {
 		nodes[node].AddListener(listenerConfig)
+		if pps.Spec.TLSCertificateSecret != "" {
+			C.ppsCache.AddTLSWatch(pps.Namespace, pps.Spec.TLSCertificateSecret, nodes[node])
+		}
 	}
 
 	C.ResyncEndpoints(pps)

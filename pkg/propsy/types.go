@@ -26,6 +26,7 @@ type ListenerConfig struct {
 	VirtualHosts    []*VirtualHost
 	Type            ProxyType
 	TrackedLocality string
+	TLSSecret       *TlsData
 }
 
 type RouteConfig struct {
