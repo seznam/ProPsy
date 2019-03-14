@@ -9,7 +9,7 @@ build:
   script:
   - mkdir -p /GO/src/gitlab.seznam.net/
   - ln -s $(pwd) /GO/src/gitlab.seznam.net/propsy
-  - cd /GO/src/gitlab.seznam.net/propsy && go build main.go
+  - cd /GO/src/gitlab.seznam.net/propsy && CGO_ENABLED=0 go build -ldflags='-s -w -extldflags "-static"' main.go
   - mkdir dist
   - cp main dist/propsy
   artifacts:
