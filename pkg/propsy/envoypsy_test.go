@@ -26,7 +26,9 @@ func Test_generateClusterParts(T *testing.T) {
 	_cluster := &v2.Cluster{
 		Name:           clusterName,
 		ConnectTimeout: time.Duration(connectTimeout) * time.Millisecond,
-		Type:           v2.Cluster_EDS,
+		ClusterDiscoveryType: &v2.Cluster_Type{
+			Type: v2.Cluster_EDS,
+		},
 		EdsClusterConfig: &api.Cluster_EdsClusterConfig{
 			ServiceName: clusterName,
 			EdsConfig: &core.ConfigSource{

@@ -87,13 +87,15 @@ func TestNodeConfig(T *testing.T) {
 		Priority:            uint32(2),
 		LbEndpoints: []endpoint.LbEndpoint{
 			{
-				Endpoint: &endpoint.Endpoint{
-					Address: &core.Address{
-						Address: &core.Address_SocketAddress{
-							SocketAddress: &core.SocketAddress{
-								Address: "1.2.3.4",
-								PortSpecifier: &core.SocketAddress_PortValue{
-									PortValue: uint32(123),
+				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+					Endpoint: &endpoint.Endpoint{
+						Address: &core.Address{
+							Address: &core.Address_SocketAddress{
+								SocketAddress: &core.SocketAddress{
+									Address: "1.2.3.4",
+									PortSpecifier: &core.SocketAddress_PortValue{
+										PortValue: uint32(123),
+									},
 								},
 							},
 						},
@@ -102,13 +104,15 @@ func TestNodeConfig(T *testing.T) {
 				HealthStatus: core.HealthStatus_HEALTHY,
 			},
 			{
-				Endpoint: &endpoint.Endpoint{
-					Address: &core.Address{
-						Address: &core.Address_SocketAddress{
-							SocketAddress: &core.SocketAddress{
-								Address: "11.22.33.44",
-								PortSpecifier: &core.SocketAddress_PortValue{
-									PortValue: uint32(123),
+				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+					Endpoint: &endpoint.Endpoint{
+						Address: &core.Address{
+							Address: &core.Address_SocketAddress{
+								SocketAddress: &core.SocketAddress{
+									Address: "11.22.33.44",
+									PortSpecifier: &core.SocketAddress_PortValue{
+										PortValue: uint32(123),
+									},
 								},
 							},
 						},
