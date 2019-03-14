@@ -15,8 +15,6 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	PropsyV1() propsyv1.PropsyV1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Propsy() propsyv1.PropsyV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -28,12 +26,6 @@ type Clientset struct {
 
 // PropsyV1 retrieves the PropsyV1Client
 func (c *Clientset) PropsyV1() propsyv1.PropsyV1Interface {
-	return c.propsyV1
-}
-
-// Deprecated: Propsy retrieves the default version of PropsyClient.
-// Please explicitly pick a version.
-func (c *Clientset) Propsy() propsyv1.PropsyV1Interface {
 	return c.propsyV1
 }
 

@@ -26,6 +26,7 @@ type ListenerConfig struct {
 	VirtualHosts    []*VirtualHost
 	Type            ProxyType
 	TrackedLocality string
+	TLSSecret       *TlsData
 }
 
 type RouteConfig struct {
@@ -298,13 +299,17 @@ func (L *ListenerConfig) AddVHost(host *VirtualHost) {
 	}
 }
 
-func (L *ListenerConfig) SafeRemove(vhost, route, clusterName string) {
+func (L *ListenerConfig) SafeRemove(vhost, route, clusterName, zone string) {
 	if L.FindVHost(vhost) == nil {
 		return
 	}
 	L.FindVHost(vhost).SafeRemoveRoute(route, clusterName)
 	if len(L.FindVHost(vhost).Routes) == 0 {
 		L.RemoveVHost(vhost)
+	}
+
+	if L.TrackedLocality == zone {
+		L.TrackedLocality = "" // reset tracked locality to allow further replacement
 	}
 }
 

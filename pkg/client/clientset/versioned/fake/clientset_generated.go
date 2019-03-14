@@ -62,8 +62,3 @@ var _ clientset.Interface = &Clientset{}
 func (c *Clientset) PropsyV1() propsyv1.PropsyV1Interface {
 	return &fakepropsyv1.FakePropsyV1{Fake: &c.Fake}
 }
-
-// Propsy retrieves the PropsyV1Client
-func (c *Clientset) Propsy() propsyv1.PropsyV1Interface {
-	return &fakepropsyv1.FakePropsyV1{Fake: &c.Fake}
-}

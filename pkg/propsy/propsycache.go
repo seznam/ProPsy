@@ -1,6 +1,7 @@
 package propsy
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
@@ -8,12 +9,21 @@ import (
 	"time"
 )
 
+type TlsData struct {
+	Certificate []byte
+	Key         []byte
+}
+
 type ProPsyCache struct {
 	queue   workqueue.RateLimitingInterface
 	stopper chan struct{}
 
 	// mapped by node name
 	nodeConfigs map[string]*NodeConfig
+
+	// mapped by TLS secret name
+	tlsNodes   map[string][]*NodeConfig
+	tlsSecrets map[string]*TlsData
 
 	// mapped by endpoint key
 	endpointConfigsByName map[string]*EndpointConfig
@@ -29,6 +39,8 @@ func NewProPsyCache() *ProPsyCache {
 		nodeConfigs:           map[string]*NodeConfig{},
 		endpointConfigsByName: map[string]*EndpointConfig{},
 		endpointNodes:         map[string][]*NodeConfig{},
+		tlsNodes:              map[string][]*NodeConfig{},
+		tlsSecrets:            map[string]*TlsData{},
 	}
 
 	return &cache
@@ -83,6 +95,54 @@ func (P *ProPsyCache) RegisterEndpointSet(cfg *EndpointConfig, nodes []*NodeConf
 	P.endpointConfigsByName[cfg.Name] = cfg
 }
 
+func (P *ProPsyCache) AddTLSWatch(secretNamespace, secretName string, node *NodeConfig) {
+	P.GetOrCreateTLS(secretNamespace, secretName)
+
+	secretName = fmt.Sprintf("%s__%s", secretNamespace, secretName)
+
+	if _, ok := P.tlsNodes[secretName]; !ok {
+		P.tlsNodes[secretName] = []*NodeConfig{node}
+	} else {
+		P.tlsNodes[secretName] = append(P.tlsNodes[secretName], node)
+	}
+
+	logrus.Debugf("Successfully added node %s to TLS %s", node.NodeName, secretName)
+}
+
+func (P *ProPsyCache) RemoveTLSWatch(secretNamespace, secretName string, node *NodeConfig) {
+	secretName = fmt.Sprintf("%s__%s", secretNamespace, secretName)
+	if _, ok := P.tlsNodes[secretName]; !ok {
+		return
+	}
+
+	for i := range P.tlsNodes[secretName] {
+		if P.tlsNodes[secretName][i] == node {
+			P.tlsNodes[secretName][i] = P.tlsNodes[secretName][len(P.tlsNodes[secretName])-1]
+			logrus.Debugf("Successfully removed node %s from TLS %s", node.NodeName, secretName)
+			return
+		}
+	}
+	logrus.Warnf("Failed to remove node %s from TLS %s", node.NodeName, secretName)
+}
+
+func (C *ProPsyCache) UpdateTLS(secretNamespace, secretName string, certificate, key []byte) bool {
+	tls := C.GetTls(secretNamespace, secretName)
+	if tls == nil {
+		return false
+	}
+
+	logrus.Debugf("Updating TLS %s to new data", secretName)
+	tls.Certificate = certificate
+	tls.Key = key
+
+	secretName = fmt.Sprintf("%s__%s", secretNamespace, secretName)
+	for i := range C.tlsNodes[secretName] {
+		C.tlsNodes[secretName][i].Update()
+	}
+
+	return true
+}
+
 func (P *ProPsyCache) Cleanup() {
 	// TODO cleanup
 	// clean up all the resources that are no longer used to free some memory and prevent eventual memory leaks
@@ -99,6 +159,31 @@ func (P *ProPsyCache) GetOrCreateNode(name string) *NodeConfig {
 	node := &NodeConfig{NodeName: name}
 	P.nodeConfigs[name] = node
 	return node
+}
+
+func (P *ProPsyCache) GetOrCreateTLS(namespace, name string) *TlsData {
+	P.mu.Lock()
+	defer P.mu.Unlock()
+
+	name = fmt.Sprintf("%s__%s", namespace, name)
+
+	if tls, ok := P.tlsSecrets[name]; ok {
+		return tls
+	}
+
+	secret := &TlsData{}
+	P.tlsSecrets[name] = secret
+	return secret
+}
+
+func (P *ProPsyCache) GetTls(namespace, name string) *TlsData {
+	name = fmt.Sprintf("%s__%s", namespace, name)
+
+	if tls, ok := P.tlsSecrets[name]; ok {
+		return tls
+	}
+
+	return nil
 }
 
 func (P *ProPsyCache) ClearPPS(ppsName string, nodes []string, canaryName string) {

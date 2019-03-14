@@ -3,6 +3,7 @@ package propsy
 import (
 	"errors"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
@@ -210,6 +211,39 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 		return nil, err
 	}
 
+	var tlsContext *auth.DownstreamTlsContext = nil
+	if L.TLSSecret != nil {
+		if len(L.TLSSecret.Key) == 0 || len(L.TLSSecret.Certificate) == 0 {
+			logrus.Warnf("There is no TLS data for %s" + L.Name)
+		} else {
+			tlsContext = &auth.DownstreamTlsContext{
+				CommonTlsContext: &auth.CommonTlsContext{
+					TlsCertificates: []*auth.TlsCertificate{{
+						CertificateChain: &core.DataSource{
+							Specifier: &core.DataSource_InlineBytes{
+								InlineBytes: L.TLSSecret.Certificate,
+							},
+						},
+						PrivateKey: &core.DataSource{
+							Specifier: &core.DataSource_InlineBytes{
+								InlineBytes: L.TLSSecret.Key,
+							},
+						},
+					}},
+					/*ValidationContextType: &auth.CommonTlsContext_ValidationContext{
+						ValidationContext: &auth.CertificateValidationContext{
+							TrustedCa: &core.DataSource{
+								Specifier: &core.DataSource_InlineBytes{
+									InlineBytes: L.TLSSecret.CA,
+								},
+							},
+						},
+					},*/
+				},
+			}
+		}
+	}
+
 	return &v2.Listener{
 		Name: L.Name,
 		Address: core.Address{
@@ -230,6 +264,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 					Config: FilterConfig,
 				},
 			}},
+			TlsContext: tlsContext,
 		}},
 	}, nil
 }
