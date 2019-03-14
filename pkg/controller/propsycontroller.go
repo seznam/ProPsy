@@ -306,7 +306,7 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 	listenerName := propsy.GenerateListenerName(pps.Spec.Listen, propsyType)
 
 	var tlsData *propsy.TlsData = nil
-	if pps.Spec.TLSCertificateSecret != "" && C.locality.Zone == propsy.LocalZone {
+	if pps.Spec.TLSCertificateSecret != "" && C.locality.Zone == propsy.LocalZone && (pps.Spec.PathPrefix == "" || pps.Spec.PathPrefix == "/") {
 		tlsData = C.ppsCache.GetOrCreateTLS(pps.Namespace, pps.Spec.TLSCertificateSecret)
 		C.ResyncTLS(pps.Namespace, pps.Spec.TLSCertificateSecret)
 	}
