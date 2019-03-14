@@ -11,7 +11,7 @@ import (
 
 type TlsData struct {
 	Certificate []byte
-	Key []byte
+	Key         []byte
 }
 
 type ProPsyCache struct {
@@ -22,8 +22,8 @@ type ProPsyCache struct {
 	nodeConfigs map[string]*NodeConfig
 
 	// mapped by TLS secret name
-	tlsNodes              map[string][]*NodeConfig
-	tlsSecrets            map[string]*TlsData
+	tlsNodes   map[string][]*NodeConfig
+	tlsSecrets map[string]*TlsData
 
 	// mapped by endpoint key
 	endpointConfigsByName map[string]*EndpointConfig

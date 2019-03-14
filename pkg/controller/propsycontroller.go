@@ -144,16 +144,25 @@ func (C *ProPsyController) WaitForInitialSync(stop <-chan struct{}) {
 }
 
 func (C *ProPsyController) SecretAdded(secret *v1.Secret) {
+	if C.locality.Zone != propsy.LocalZone {
+		return
+	}
 	logrus.Debugf("Secret added: %s:%s", secret.Namespace, secret.Name)
 	C.ppsCache.UpdateTLS(secret.Namespace, secret.Name, secret.Data["tls.crt"], secret.Data["tls.key"])
 }
 
 func (C *ProPsyController) SecretRemoved(secret *v1.Secret) {
+	if C.locality.Zone != propsy.LocalZone {
+		return
+	}
 	logrus.Debugf("Secret removed: %s:%s", secret.Namespace, secret.Name)
 	C.ppsCache.UpdateTLS(secret.Namespace, secret.Name, []byte{}, []byte{})
 }
 
 func (C *ProPsyController) SecretChanged(old, new *v1.Secret) {
+	if C.locality.Zone != propsy.LocalZone {
+		return
+	}
 	if reflect.DeepEqual(old, new) {
 		return
 	}
@@ -297,7 +306,7 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 	listenerName := propsy.GenerateListenerName(pps.Spec.Listen, propsyType)
 
 	var tlsData *propsy.TlsData = nil
-	if pps.Spec.TLSCertificateSecret != "" {
+	if pps.Spec.TLSCertificateSecret != "" && C.locality.Zone == propsy.LocalZone {
 		tlsData = C.ppsCache.GetOrCreateTLS(pps.Namespace, pps.Spec.TLSCertificateSecret)
 		C.ResyncTLS(pps.Namespace, pps.Spec.TLSCertificateSecret)
 	}
@@ -379,9 +388,9 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 		lis := node.FindListener(listenerName)
 		if lis != nil {
 			if pps.Spec.CanaryService != "" {
-				lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService))
+				lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService), C.locality.Zone)
 			}
-			lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service))
+			lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service), C.locality.Zone)
 
 			logrus.Debugf("Remaining vhosts: %d", len(lis.VirtualHosts))
 			if len(lis.VirtualHosts) == 0 {
