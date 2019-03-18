@@ -6,7 +6,7 @@ This file has been generated.
 package v1
 
 import (
-	internalinterfaces "gitlab.seznam.net/propsy/pkg/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/seznam/ProPsy/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

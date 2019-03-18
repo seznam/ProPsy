@@ -6,7 +6,7 @@ This file has been generated.
 package versioned
 
 import (
-	propsyv1 "gitlab.seznam.net/propsy/pkg/client/clientset/versioned/typed/propsy/v1"
+	propsyv1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

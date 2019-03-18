@@ -6,9 +6,9 @@ This file has been generated.
 package fake
 
 import (
-	clientset "gitlab.seznam.net/propsy/pkg/client/clientset/versioned"
-	propsyv1 "gitlab.seznam.net/propsy/pkg/client/clientset/versioned/typed/propsy/v1"
-	fakepropsyv1 "gitlab.seznam.net/propsy/pkg/client/clientset/versioned/typed/propsy/v1/fake"
+	clientset "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
+	propsyv1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1"
+	fakepropsyv1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

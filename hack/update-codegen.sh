@@ -26,10 +26,10 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${SCRIPT_ROOT}; ls -d -1 ./vendor/k8s.io/code-ge
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
 ${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
-  gitlab.seznam.net/propsy/pkg/client gitlab.seznam.net/propsy/pkg/apis \
+  github.com/seznam/ProPsy/pkg/client github.com/seznam/ProPsy/pkg/apis \
   propsy:v1 \
   --go-header-file ${SCRIPT_ROOT}/hack/boilerplate.go.txt \
-  --output-base "$(dirname ${BASH_SOURCE})/../../.."
+  --output-base "$(dirname ${BASH_SOURCE})/../../../.."
 
 # To use your own boilerplate text use:
 #   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt

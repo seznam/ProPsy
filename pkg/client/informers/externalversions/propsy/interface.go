@@ -6,8 +6,8 @@ This file has been generated.
 package propsy
 
 import (
-	internalinterfaces "gitlab.seznam.net/propsy/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "gitlab.seznam.net/propsy/pkg/client/informers/externalversions/propsy/v1"
+	internalinterfaces "github.com/seznam/ProPsy/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/seznam/ProPsy/pkg/client/informers/externalversions/propsy/v1"
 )
 
 // Interface provides access to each of this group's versions.

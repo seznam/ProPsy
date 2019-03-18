@@ -8,8 +8,8 @@ package v1
 import (
 	"time"
 
-	v1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
-	scheme "gitlab.seznam.net/propsy/pkg/client/clientset/versioned/scheme"
+	v1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
+	scheme "github.com/seznam/ProPsy/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

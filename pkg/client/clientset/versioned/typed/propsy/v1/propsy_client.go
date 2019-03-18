@@ -6,8 +6,8 @@ This file has been generated.
 package v1
 
 import (
-	v1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
-	"gitlab.seznam.net/propsy/pkg/client/clientset/versioned/scheme"
+	v1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
+	"github.com/seznam/ProPsy/pkg/client/clientset/versioned/scheme"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )

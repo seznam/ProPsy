@@ -8,7 +8,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
+	v1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

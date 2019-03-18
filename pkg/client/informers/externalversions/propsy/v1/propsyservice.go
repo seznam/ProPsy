@@ -8,10 +8,10 @@ package v1
 import (
 	time "time"
 
-	propsyv1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
-	versioned "gitlab.seznam.net/propsy/pkg/client/clientset/versioned"
-	internalinterfaces "gitlab.seznam.net/propsy/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "gitlab.seznam.net/propsy/pkg/client/listers/propsy/v1"
+	propsyv1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
+	versioned "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/seznam/ProPsy/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/seznam/ProPsy/pkg/client/listers/propsy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

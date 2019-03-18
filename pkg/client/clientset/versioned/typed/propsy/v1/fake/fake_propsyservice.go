@@ -6,7 +6,7 @@ This file has been generated.
 package fake
 
 import (
-	propsyv1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
+	propsyv1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

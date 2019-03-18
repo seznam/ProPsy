@@ -6,7 +6,7 @@ This file has been generated.
 package scheme
 
 import (
-	propsyv1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
+	propsyv1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

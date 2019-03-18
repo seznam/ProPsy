@@ -6,7 +6,7 @@ This file has been generated.
 package fake
 
 import (
-	v1 "gitlab.seznam.net/propsy/pkg/client/clientset/versioned/typed/propsy/v1"
+	v1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

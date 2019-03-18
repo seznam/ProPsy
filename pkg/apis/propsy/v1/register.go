@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"gitlab.seznam.net/propsy/pkg/apis/propsy"
+	"github.com/seznam/ProPsy/pkg/apis/propsy"
 )
 
 // SchemeGroupVersion is group version used to register these objects

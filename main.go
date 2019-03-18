@@ -4,14 +4,14 @@ import (
 	"errors"
 	"flag"
 	"github.com/sirupsen/logrus"
-	"gitlab.seznam.net/propsy/pkg/controller"
-	"gitlab.seznam.net/propsy/pkg/propsy"
+	"github.com/seznam/ProPsy/pkg/controller"
+	"github.com/seznam/ProPsy/pkg/propsy"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"net"
 	"strings"
 
-	clientset "gitlab.seznam.net/propsy/pkg/client/clientset/versioned"
+	clientset "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
 )
 
 type ConnectedCluster struct {

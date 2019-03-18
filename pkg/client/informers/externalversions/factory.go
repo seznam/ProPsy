@@ -10,9 +10,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "gitlab.seznam.net/propsy/pkg/client/clientset/versioned"
-	internalinterfaces "gitlab.seznam.net/propsy/pkg/client/informers/externalversions/internalinterfaces"
-	propsy "gitlab.seznam.net/propsy/pkg/client/informers/externalversions/propsy"
+	versioned "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/seznam/ProPsy/pkg/client/informers/externalversions/internalinterfaces"
+	propsy "github.com/seznam/ProPsy/pkg/client/informers/externalversions/propsy"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

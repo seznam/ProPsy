@@ -2,12 +2,12 @@ package controller
 
 import (
 	"github.com/sirupsen/logrus"
-	propsyv1 "gitlab.seznam.net/propsy/pkg/apis/propsy/v1"
-	propsyclient "gitlab.seznam.net/propsy/pkg/client/clientset/versioned"
-	ppsv1 "gitlab.seznam.net/propsy/pkg/client/clientset/versioned/typed/propsy/v1"
-	informerext "gitlab.seznam.net/propsy/pkg/client/informers/externalversions"
-	ppslisterv1 "gitlab.seznam.net/propsy/pkg/client/listers/propsy/v1"
-	"gitlab.seznam.net/propsy/pkg/propsy"
+	propsyv1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
+	propsyclient "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
+	ppsv1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1"
+	informerext "github.com/seznam/ProPsy/pkg/client/informers/externalversions"
+	ppslisterv1 "github.com/seznam/ProPsy/pkg/client/listers/propsy/v1"
+	"github.com/seznam/ProPsy/pkg/propsy"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"

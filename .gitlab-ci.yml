@@ -8,8 +8,8 @@ build:
   image: docker.dev.dszn.cz/golang1.10:stretch
   script:
   - mkdir -p /GO/src/gitlab.seznam.net/
-  - ln -s $(pwd) /GO/src/gitlab.seznam.net/propsy
-  - cd /GO/src/gitlab.seznam.net/propsy && CGO_ENABLED=0 go build -ldflags='-s -w -extldflags "-static"' main.go
+  - ln -s $(pwd) /GO/src/github.com/seznam/ProPsy
+  - cd /GO/src/github.com/seznam/ProPsy && CGO_ENABLED=0 go build -ldflags='-s -w -extldflags "-static"' main.go
   - mkdir dist
   - cp main dist/propsy
   artifacts:
@@ -35,8 +35,8 @@ testsrc:
   image: docker.dev.dszn.cz/golang1.10:stretch
   script:
   - mkdir -p /GO/src/gitlab.seznam.net/
-  - ln -s $(pwd) /GO/src/gitlab.seznam.net/propsy
-  - cd /GO/src/gitlab.seznam.net/propsy && go test -cover ./...
+  - ln -s $(pwd) /GO/src/github.com/seznam/ProPsy
+  - cd /GO/src/github.com/seznam/ProPsy && go test -cover ./...
 
 teste2e:
   stage: test
