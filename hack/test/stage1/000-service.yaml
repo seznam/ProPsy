@@ -12,6 +12,7 @@ spec:
   service: test-e2e
   servicePort: 6443
   connectTimeout: 5000
+  timeout: 5000
   canaryService: test-e2e-canary
   canaryPercent: 5
   type: HTTP
