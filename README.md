@@ -2,7 +2,7 @@
 ProPsy is a very useful tool that distributes config to remote Envoy nodes. It does so by a feature of Envoy - gRPC streaming discovery. Each Envoy gets set a name and a path to a discovery cluster, from which it pulls all of its config - Listeners, Clusters, Routes and Endpoints. What ProPsy does is listen across **MULTIPLE** Kubernetes clusters for these ProPsy Service events and Endpoint events to generate these configs.
 
 ## How to use
-First you need some Envoy. Start by installing recent `adm-envoy` package (let's say 1.9+ as that has been tested and compiled protobufs against) and configure its node name to "my-proxy". Next you need to set up a CRD in your kubernetes cluster as defined in `deployment/kubernetes/crd-service.yaml`. Then you can start creating these "ProPsy Services":
+First you need some Envoy. Start by installing recent `envoy` package (let's say 1.9+ as that has been tested and compiled protobufs against) and configure its node name to "my-proxy". Next you need to set up a CRD in your kubernetes cluster as defined in `deployment/kubernetes/crd-service.yaml`. Then you can start creating these "ProPsy Services":
 ```yaml
 apiVersion: propsy.seznam.cz/v1
 kind: ProPsyService
@@ -108,13 +108,13 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: 10.249.5.11
-                port_value: 9999
+                address: 127.0.0.1
+                port_value: 8.8.8.8
 ```
 And launch it as
 
 ```
-/www/adm/envoy/sbin/envoy --config-path /www/adm/envoy/conf/envoy.yaml --service-cluster xds_cluster --service-zone ko --v2-config-only -l info
+envoy --config-path conf/envoy.yaml --service-cluster xds_cluster --service-zone ko --v2-config-only -l info
 ```
 
 And you should be done! :)
@@ -151,9 +151,9 @@ Discovery works across all connected clusters. That means that you can run some 
 ### Debugging
 If there's something odd happening, it is possible to view the actual data ProPsy is distributing by using `grpcurl` (get it somewhere online or from a 1st stage in our gitlab pipeline builds) and fetching all the protobufs:
 ```
-grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/lds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.ListenerDiscoveryService/FetchListeners | jq .
-grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/cds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.ClusterDiscoveryService/FetchClusters | jq .
-grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/eds.proto -plaintext fvirtbs136.ko:9999 envoy.api.v2.EndpointDiscoveryService/FetchEndpoints | jq .
+grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/lds.proto -plaintext localhost:8888 envoy.api.v2.ListenerDiscoveryService/FetchListeners | jq .
+grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/cds.proto -plaintext localhost:8888 envoy.api.v2.ClusterDiscoveryService/FetchClusters | jq .
+grpcurl -d '{"node": {"id": "my-proxy"}}' -import-path proto/data-plane-api/ -proto envoy/api/v2/eds.proto -plaintext localhost:8888 envoy.api.v2.EndpointDiscoveryService/FetchEndpoints | jq .
 ```
 
 (Routes are distributed within Listener discovery)
