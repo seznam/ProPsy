@@ -8,7 +8,9 @@ import (
 	"github.com/seznam/ProPsy/pkg/propsy"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 	"net"
+	"os"
 	"strings"
 
 	clientset "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
@@ -51,15 +53,19 @@ func init() {
 }
 
 func main() {
-
+	klog.InitFlags(nil)
+	flag.Set("logtostderr", "true")
 	flag.Parse()
-	propsy.InitGRPCServer()
-
 	if debugMode {
 		logrus.SetLevel(logrus.DebugLevel)
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
+
+
+	logrus.SetOutput(os.Stdout)
+
+	propsy.InitGRPCServer()
 
 	if len(connectedClusters) == 0 {
 		logrus.Fatal("There are zero clusters defined. Exiting!")
