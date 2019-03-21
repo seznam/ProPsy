@@ -14,6 +14,7 @@ type ProPsyServiceSpec struct {
 	CanaryService        string   `json:"canaryService"`
 	CanaryPercent        int      `json:"canaryPercent"`
 	Timeout              int      `json:"timeout"`
+	ConnectTimeout       int      `json:"connectTimeout"`
 	Type                 string   `json:"type"`
 	PathPrefix           string   `json:"pathPrefix"`
 	PrefixRewrite        string   `json:"prefixRewrite"`

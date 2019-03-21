@@ -49,6 +49,10 @@ spec:
             timeout:
               type: integer
               minimum: 1
+              maximum: 600000
+            connectTimeout:
+              type: integer
+              minimum: 1
               maximum: 60000
             type:
               type: string

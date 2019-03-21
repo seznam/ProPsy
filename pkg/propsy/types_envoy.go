@@ -287,6 +287,7 @@ func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWei
 					},
 				},
 				PrefixRewrite: R.PrefixRewrite,
+				Timeout:       &R.Timeout,
 			},
 		},
 	}

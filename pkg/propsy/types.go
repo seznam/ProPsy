@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type NodeConfig struct {
@@ -34,6 +35,7 @@ type RouteConfig struct {
 	Clusters      []*ClusterConfig
 	PathPrefix    string
 	PrefixRewrite string
+	Timeout       time.Duration
 }
 
 type VirtualHost struct {

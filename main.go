@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"flag"
-	"github.com/sirupsen/logrus"
 	"github.com/seznam/ProPsy/pkg/controller"
 	"github.com/seznam/ProPsy/pkg/propsy"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
@@ -61,7 +61,6 @@ func main() {
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
-
 
 	logrus.SetOutput(os.Stdout)
 

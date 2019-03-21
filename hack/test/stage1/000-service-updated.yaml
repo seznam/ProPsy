@@ -12,7 +12,7 @@ spec:
   percent: 50
   service: kubernetess
   servicePort: 8080
-  timeout: 6000
+  connectTimeout: 6000
   canaryService: testt
   canaryPercent: 10
   type: HTTP

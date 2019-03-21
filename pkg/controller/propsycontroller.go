@@ -1,13 +1,13 @@
 package controller
 
 import (
-	"github.com/sirupsen/logrus"
 	propsyv1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
 	propsyclient "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
 	ppsv1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1"
 	informerext "github.com/seznam/ProPsy/pkg/client/informers/externalversions"
 	ppslisterv1 "github.com/seznam/ProPsy/pkg/client/listers/propsy/v1"
 	"github.com/seznam/ProPsy/pkg/propsy"
+	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -254,7 +254,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 	}
 
 	return &propsy.ClusterConfig{
-		ConnectTimeout: pps.Spec.Timeout,
+		ConnectTimeout: pps.Spec.ConnectTimeout,
 		Name:           endpointName,
 		Weight:         percent,
 		EndpointConfig: &endpointConfig,
@@ -273,11 +273,14 @@ func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.R
 
 	routeName, path := propsy.GenerateRouteName(pps.Spec.PathPrefix)
 
+	timeout := time.Duration(pps.Spec.Timeout) * time.Millisecond
+
 	return &propsy.RouteConfig{
 		Name:          routeName,
 		Clusters:      clusterConfigs,
 		PathPrefix:    path,
 		PrefixRewrite: pps.Spec.PrefixRewrite,
+		Timeout:       timeout,
 	}
 }
 
