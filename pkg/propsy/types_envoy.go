@@ -63,7 +63,7 @@ func (L *Locality) ToEnvoy() *core.Locality {
 }
 
 func (C *ClusterConfig) ToEnvoy() *v2.Cluster {
-	return ClusterToEnvoy(C.Name, C.ConnectTimeout)
+	return ClusterToEnvoy(C.Name, C.ConnectTimeout, C.MaxRequests)
 }
 
 func (V *VirtualHost) ToEnvoy(routes []route.Route) route.VirtualHost {
@@ -151,7 +151,12 @@ func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoad
 	return endpoints
 }
 
-func ClusterToEnvoy(targetName string, connectTimeout int) *v2.Cluster {
+func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int) *v2.Cluster {
+	maxRequestsPtr := UInt32FromInteger(maxRequests)
+	if maxRequests == 0 {
+		maxRequestsPtr = nil
+	}
+
 	return &v2.Cluster{
 		Name:           targetName,
 		ConnectTimeout: time.Duration(connectTimeout) * time.Millisecond,
@@ -182,6 +187,7 @@ func ClusterToEnvoy(targetName string, connectTimeout int) *v2.Cluster {
 				},
 			},
 		},
+		MaxRequestsPerConnection: maxRequestsPtr,
 	}
 }
 
@@ -270,7 +276,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 }
 
 func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWeight) route.Route {
-	totalWeight, _, _, _, _ := R.CalculateWeights()
+	totalWeight, _, _, _, _, _ := R.CalculateWeights()
 
 	return route.Route{
 		Match: route.RouteMatch{

@@ -259,6 +259,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 		Weight:         percent,
 		EndpointConfig: &endpointConfig,
 		IsCanary:       isCanary,
+		MaxRequests:    pps.Spec.MaxRequestsPerConnection,
 	}
 }
 

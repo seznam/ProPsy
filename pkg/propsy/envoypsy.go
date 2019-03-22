@@ -121,7 +121,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				_route := _vhost.Routes[r]
 				var routedClusters []*route.WeightedCluster_ClusterWeight
 
-				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout := _route.CalculateWeights()
+				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests := _route.CalculateWeights()
 
 				logrus.Debugf("total: %d, local: %d, other: %d, clusters: %d", totalWeight, localZoneWeight, otherZoneWeight, len(_route.Clusters))
 				for i := range _route.Clusters {
@@ -132,7 +132,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				endpointsAll := _route.GeneratePrioritizedEndpoints(LocalZone)
 
 				addEndpoints := endpointsAll.ToEnvoy(_listener.Name + "_" + _route.GenerateUniqueRouteName())
-				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout)
+				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests)
 				routedCluster := WeightedClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), localZoneWeight)
 
 				sendClusters = append(sendClusters, cluster)

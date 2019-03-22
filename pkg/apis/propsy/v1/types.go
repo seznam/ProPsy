@@ -5,20 +5,21 @@ import (
 )
 
 type ProPsyServiceSpec struct {
-	Service              string   `json:"service"`
-	ServicePort          int      `json:"servicePort"`
-	Listen               string   `json:"listen"`
-	Disabled             bool     `json:"disabled"`
-	Percent              int      `json:"percent"`
-	Nodes                []string `json:"nodes"`
-	CanaryService        string   `json:"canaryService"`
-	CanaryPercent        int      `json:"canaryPercent"`
-	Timeout              int      `json:"timeout"`
-	ConnectTimeout       int      `json:"connectTimeout"`
-	Type                 string   `json:"type"`
-	PathPrefix           string   `json:"pathPrefix"`
-	PrefixRewrite        string   `json:"prefixRewrite"`
-	TLSCertificateSecret string   `json:"tlsCertificateSecret"`
+	Service                  string   `json:"service"`
+	ServicePort              int      `json:"servicePort"`
+	Listen                   string   `json:"listen"`
+	Disabled                 bool     `json:"disabled"`
+	Percent                  int      `json:"percent"`
+	Nodes                    []string `json:"nodes"`
+	CanaryService            string   `json:"canaryService"`
+	CanaryPercent            int      `json:"canaryPercent"`
+	Timeout                  int      `json:"timeout"`
+	ConnectTimeout           int      `json:"connectTimeout"`
+	MaxRequestsPerConnection int      `json:"maxRequestsPerConnection"`
+	Type                     string   `json:"type"`
+	PathPrefix               string   `json:"pathPrefix"`
+	PrefixRewrite            string   `json:"prefixRewrite"`
+	TLSCertificateSecret     string   `json:"tlsCertificateSecret"`
 }
 
 // +genclient

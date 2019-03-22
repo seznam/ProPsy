@@ -50,6 +50,7 @@ type ClusterConfig struct {
 	EndpointConfig *EndpointConfig
 	Weight         int
 	IsCanary       bool
+	MaxRequests    int
 }
 
 type EndpointConfig struct {
@@ -216,7 +217,7 @@ func (R *RouteConfig) Free() {
 }
 
 func (R *RouteConfig) CalculateWeights() (
-	totalWeight int, localZoneWeight int, otherZoneWeight int, canariesWeight int, connectTimeout int) {
+	totalWeight int, localZoneWeight int, otherZoneWeight int, canariesWeight int, connectTimeout int, maxRequests int) {
 	otherZoneCount := 0
 	connectTimeout = 1 // set sane default so envoy doesn't freak out
 	// find the total sum of weights that are not our cluster and our clusters as well
@@ -228,6 +229,7 @@ func (R *RouteConfig) CalculateWeights() (
 		if _cluster.EndpointConfig.Locality.Zone == LocalZone && !_cluster.IsCanary {
 			localZoneWeight = _cluster.Weight
 			connectTimeout = _cluster.ConnectTimeout
+			maxRequests = _cluster.MaxRequests
 		} else if !_cluster.IsCanary {
 			otherZoneWeight += _cluster.Weight
 			otherZoneCount++
@@ -246,7 +248,7 @@ func (R *RouteConfig) CalculateWeights() (
 
 	totalWeight = localZoneWeight + otherZoneCount*otherZoneWeight + canariesWeight // canaries are separated
 
-	return totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout
+	return totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests
 }
 
 func (R *RouteConfig) AddClusters(configs []*ClusterConfig) {
