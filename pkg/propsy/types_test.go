@@ -30,7 +30,7 @@ func TestNodeConfig(T *testing.T) {
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "testbar", Weight: 10})
 
 	LocalZone = "test"
-	if totalWeight, _, _, _, _ := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").CalculateWeights(); totalWeight != 105 {
+	if totalWeight, _, _, _, _, _ := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").CalculateWeights(); totalWeight != 105 {
 		log.Fatalf("Error total weight: expected 16, got %d!", totalWeight)
 	}
 
