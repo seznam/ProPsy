@@ -30,6 +30,11 @@ type ListenerConfig struct {
 	TLSSecret       *TlsData
 }
 
+func (L *ListenerConfig) String() string {
+	return fmt.Sprintf("Name: %s, Listen: %s, Type: %d, TrackedLocality: %s, TLSSecret: \n%v\nVirtualHosts: \n%+v",
+		L.Name, L.Listen, L.Type, L.TrackedLocality, L.TLSSecret, L.VirtualHosts)
+}
+
 type RouteConfig struct {
 	Name          string
 	Clusters      []*ClusterConfig
@@ -38,10 +43,20 @@ type RouteConfig struct {
 	Timeout       time.Duration
 }
 
+func (R *RouteConfig) String() string {
+	return fmt.Sprintf("Name: %s, PathPrefix: %s, PrefixRewrite: %s, Timeout: %s, Clusters:\n%+v",
+		R.Name, R.PathPrefix, R.PrefixRewrite, R.Timeout.String(), R.Clusters)
+}
+
 type VirtualHost struct {
 	Name    string
 	Domains []string
 	Routes  []*RouteConfig
+}
+
+func (V *VirtualHost) String() string {
+	return fmt.Sprintf("Name: %s, Domains: %v, Routes:\n%+v",
+		V.Name, V.Domains, V.Routes)
 }
 
 type ClusterConfig struct {
@@ -53,6 +68,11 @@ type ClusterConfig struct {
 	MaxRequests    int
 }
 
+func (C *ClusterConfig) String() string {
+	return fmt.Sprintf("Name: %s, ConnectTimeout: %d, Weight: %d, MaxRequests: %d, IsCanary: %v, EndpointConfig: %+v",
+		C.Name, C.ConnectTimeout, C.Weight, C.MaxRequests, C.IsCanary, C.EndpointConfig)
+}
+
 type EndpointConfig struct {
 	Lock        sync.Mutex
 	Name        string
@@ -61,10 +81,20 @@ type EndpointConfig struct {
 	Endpoints   []*Endpoint
 }
 
+func (E *EndpointConfig) String() string {
+	return fmt.Sprintf("Name: %s, ServicePort: %d, Locality: %s, Endpoints: %+v",
+		E.Name, E.ServicePort, E.Locality.Zone, E.Endpoints)
+}
+
 type Endpoint struct {
 	Host    string
 	Weight  int
 	Healthy bool
+}
+
+func (E *Endpoint) String() string {
+	return fmt.Sprintf("Host: %s, Weight: %d, Healthy: %v",
+		E.Host, E.Weight, E.Healthy)
 }
 
 func (N *NodeConfig) Update() {
