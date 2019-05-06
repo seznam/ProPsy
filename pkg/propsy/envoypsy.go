@@ -121,7 +121,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				_route := _vhost.Routes[r]
 				var routedClusters []*route.WeightedCluster_ClusterWeight
 
-				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests := _route.CalculateWeights()
+				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests, lowestPriority, lowestPriorityCanary := _route.CalculateWeights()
 
 				logrus.Debugf("total: %d, local: %d, other: %d, clusters: %d", totalWeight, localZoneWeight, otherZoneWeight, len(_route.Clusters))
 				for i := range _route.Clusters {
@@ -142,12 +142,12 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				// now the others
 				for c := range _route.Clusters {
 					_cluster := _route.Clusters[c]
-					logrus.Debugf("Adding cluster to the cluster set: %s, %b, %s == %s", _cluster.Name, _cluster.IsCanary, _cluster.EndpointConfig.Locality.Zone, LocalZone)
-					if _cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone != LocalZone {
+					logrus.Debugf("Adding cluster to the cluster set: %s, %b, %s", _cluster.Name, _cluster.IsCanary, LocalZone)
+					if _cluster.IsCanary && lowestPriorityCanary != _cluster.Priority {
 						logrus.Debugf(".. Skipping!")
 						continue // skip canaries of other zones
 					}
-					if !_cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone == LocalZone {
+					if !_cluster.IsCanary && lowestPriority == _cluster.Priority {
 						logrus.Debugf("... Skipping too!")
 						continue // skip local zones
 					}

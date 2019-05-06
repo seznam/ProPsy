@@ -3,6 +3,7 @@ package propsy
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,6 +67,7 @@ type ClusterConfig struct {
 	Weight         int
 	IsCanary       bool
 	MaxRequests    int
+	Priority       int
 }
 
 func (C *ClusterConfig) String() string {
@@ -77,13 +79,12 @@ type EndpointConfig struct {
 	Lock        sync.Mutex
 	Name        string
 	ServicePort int // used only internally
-	Locality    *Locality
 	Endpoints   []*Endpoint
 }
 
 func (E *EndpointConfig) String() string {
-	return fmt.Sprintf("Name: %s, ServicePort: %d, Locality: %s, Endpoints: %+v",
-		E.Name, E.ServicePort, E.Locality.Zone, E.Endpoints)
+	return fmt.Sprintf("Name: %s, ServicePort: %d, Endpoints: %+v",
+		E.Name, E.ServicePort, E.Endpoints)
 }
 
 type Endpoint struct {
@@ -247,23 +248,32 @@ func (R *RouteConfig) Free() {
 }
 
 func (R *RouteConfig) CalculateWeights() (
-	totalWeight int, localZoneWeight int, otherZoneWeight int, canariesWeight int, connectTimeout int, maxRequests int) {
+	totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests, lowestPriority, lowestPriorityCanary int) {
 	otherZoneCount := 0
 	connectTimeout = 1 // set sane default so envoy doesn't freak out
 	// find the total sum of weights that are not our cluster and our clusters as well
+	lowestPriority, lowestPriorityCanary = math.MaxInt32, math.MaxInt32
+	for c := range R.Clusters {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary {
+			lowestPriority = R.Clusters[c].Priority
+		} else if R.Clusters[c].Priority < lowestPriorityCanary && R.Clusters[c].IsCanary {
+			lowestPriorityCanary = R.Clusters[c].Priority
+		}
+	}
+
 	for c := range R.Clusters {
 		_cluster := R.Clusters[c]
 		if _cluster.EndpointConfig == nil {
 			continue
 		}
-		if _cluster.EndpointConfig.Locality.Zone == LocalZone && !_cluster.IsCanary {
+		if _cluster.Priority == lowestPriority && !_cluster.IsCanary {
 			localZoneWeight = _cluster.Weight
 			connectTimeout = _cluster.ConnectTimeout
 			maxRequests = _cluster.MaxRequests
 		} else if !_cluster.IsCanary {
 			otherZoneWeight += _cluster.Weight
 			otherZoneCount++
-		} else if _cluster.IsCanary && _cluster.EndpointConfig.Locality.Zone == LocalZone {
+		} else if _cluster.IsCanary && _cluster.Priority == lowestPriorityCanary {
 			canariesWeight += _cluster.Weight // should be no more than one
 		}
 	}
@@ -278,7 +288,7 @@ func (R *RouteConfig) CalculateWeights() (
 
 	totalWeight = localZoneWeight + otherZoneCount*otherZoneWeight + canariesWeight // canaries are separated
 
-	return totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests
+	return totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests, lowestPriority, lowestPriorityCanary
 }
 
 func (R *RouteConfig) AddClusters(configs []*ClusterConfig) {
@@ -355,8 +365,8 @@ func (C *ClusterConfig) Free() {
 	C.EndpointConfig.Endpoints = []*Endpoint{}
 }
 
-func GenerateUniqueEndpointName(locality *Locality, namespace, name string) string {
-	return fmt.Sprintf("%s-%s-%s", locality.Zone, namespace, name)
+func GenerateUniqueEndpointName(priority int, namespace, name string) string {
+	return fmt.Sprintf("%d-%s-%s", priority, namespace, name)
 }
 
 func GenerateUniqConfigName(namespace, name string) string {

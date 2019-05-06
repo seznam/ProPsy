@@ -13,6 +13,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
 	"github.com/sirupsen/logrus"
+	"math"
 	"time"
 )
 
@@ -47,7 +48,6 @@ func (E *EndpointConfig) ToEnvoy(priority, weight int) endpoint.LocalityLbEndpoi
 		endpoints = append(endpoints, E.Endpoints[i].ToEnvoy(E.ServicePort))
 	}
 	return endpoint.LocalityLbEndpoints{
-		Locality:            E.Locality.ToEnvoy(),
 		LbEndpoints:         endpoints,
 		Priority:            uint32(priority),
 		LoadBalancingWeight: UInt32FromInteger(weight),
@@ -133,6 +133,15 @@ func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssig
 
 func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoadAssignment {
 	var endpoints []endpoint.LocalityLbEndpoints
+
+	// find the lowest priority
+	lowestPriority := math.MaxInt32
+	for c := range R.Clusters {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary {
+			lowestPriority = R.Clusters[c].Priority
+		}
+	}
+
 	for c := range R.Clusters {
 		_cluster := R.Clusters[c]
 		// skip canaries for this
@@ -141,7 +150,7 @@ func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoad
 		}
 
 		priority := 1
-		if _cluster.EndpointConfig.Locality.Zone == localZone {
+		if _cluster.Priority == lowestPriority {
 			priority = 0 // local cluster gets priority 0
 		}
 
@@ -276,7 +285,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 }
 
 func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWeight) route.Route {
-	totalWeight, _, _, _, _, _ := R.CalculateWeights()
+	totalWeight, _, _, _, _, _, _, _ := R.CalculateWeights()
 
 	return route.Route{
 		Match: route.RouteMatch{

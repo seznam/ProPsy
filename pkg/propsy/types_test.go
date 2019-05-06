@@ -30,7 +30,7 @@ func TestNodeConfig(T *testing.T) {
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "testbar", Weight: 10})
 
 	LocalZone = "test"
-	if totalWeight, _, _, _, _, _ := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").CalculateWeights(); totalWeight != 105 {
+	if totalWeight, _, _, _, _, _, _, _ := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").CalculateWeights(); totalWeight != 105 {
 		log.Fatalf("Error total weight: expected 16, got %d!", totalWeight)
 	}
 
@@ -61,9 +61,6 @@ func TestNodeConfig(T *testing.T) {
 		Name:        "test",
 		ServicePort: 123,
 		Endpoints:   []*Endpoint{},
-		Locality: &Locality{
-			Zone: "test",
-		},
 	}})
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.AddEndpoint("1.2.3.4", 10, true)
@@ -78,11 +75,6 @@ func TestNodeConfig(T *testing.T) {
 	}
 	epc := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").EndpointConfig.ToEnvoy(2, 3)
 	epc_orig := endpoint.LocalityLbEndpoints{
-		Locality: &core.Locality{
-			Zone:    "test",
-			SubZone: "admins5",
-			Region:  "Seznam",
-		},
 		LoadBalancingWeight: UInt32FromInteger(3),
 		Priority:            uint32(2),
 		LbEndpoints: []endpoint.LbEndpoint{
@@ -123,7 +115,7 @@ func TestNodeConfig(T *testing.T) {
 		},
 	}
 	if !reflect.DeepEqual(epc, epc_orig) {
-		log.Fatalf("Generated wrong envoy lbendpoint! %+v vs %+v", epc, epc_orig)
+		log.Fatalf("Generated wrong envoy lbendpoint!\n%+v\nvs\n%+v", epc, epc_orig)
 	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").FindCluster("foobar").Free()
@@ -147,13 +139,10 @@ func generateSampleNode() NodeConfig {
 		&VirtualHost{Name: "foobar"})
 	node.FindListener("foobar").FindVHost("foobar").AddRoute(&RouteConfig{Name: "foobar"})
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").
-		AddCluster(&ClusterConfig{Name: "foobar-foreign", Weight: 5, ConnectTimeout: 1000, EndpointConfig: &EndpointConfig{
+		AddCluster(&ClusterConfig{Name: "foobar-foreign", Weight: 5, ConnectTimeout: 1000, Priority: 1, EndpointConfig: &EndpointConfig{
 			Name:        "test",
 			ServicePort: 123,
 			Endpoints:   []*Endpoint{},
-			Locality: &Locality{
-				Zone: "test-foreign",
-			},
 		}})
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddClusters([]*ClusterConfig{
 		{
@@ -161,11 +150,9 @@ func generateSampleNode() NodeConfig {
 			Weight:         5,
 			Name:           "foobar",
 			ConnectTimeout: 5000,
+			Priority:       0,
 			EndpointConfig: &EndpointConfig{
 				Name: "foobars",
-				Locality: &Locality{
-					Zone: "test",
-				},
 				ServicePort: 456,
 				Endpoints: []*Endpoint{
 					{
@@ -184,9 +171,6 @@ func generateSampleNode() NodeConfig {
 			EndpointConfig: &EndpointConfig{
 				Name:        "test-notcanary",
 				ServicePort: 9999,
-				Locality: &Locality{
-					Zone: "test",
-				},
 			},
 		},
 	})
@@ -194,9 +178,7 @@ func generateSampleNode() NodeConfig {
 }
 
 func TestUnique(T *testing.T) {
-	locality := &Locality{Zone: "test"}
-
-	if GenerateUniqueEndpointName(locality, "namespace", "test") != "test-namespace-test" {
+	if GenerateUniqueEndpointName(1, "namespace", "test") != "1-namespace-test" {
 		log.Fatalf("Wrong uniquely generated endpoint name!")
 	}
 }

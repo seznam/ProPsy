@@ -35,7 +35,7 @@ What this will create is:
 
 Now it is time to start the ProPsy daemon itself (can be within k8s cluster or outside):
 ```
-./propsy-bin -listen ":9999" -zone ko -debug -clientverifyca cert/client-ca.pem -servercert cert/server.pem -serverkey cert/server-key.pem -configcluster /home/ashley/kubeconfig-propsy-ko.yaml:ko -endpointcluster /home/ashley/kubeconfig-propsy-ng.yaml:ng -endpointcluster /home/ashley/kubeconfig-propsy-ko.yaml:ko
+./propsy-bin -listen ":9999" -zone ko -debug -clientverifyca cert/client-ca.pem -servercert cert/server.pem -serverkey cert/server-key.pem -configcluster /home/ashley/kubeconfig-propsy-ko.yaml:ko -endpointcluster /home/ashley/kubeconfig-propsy-ng.yaml:2 -endpointcluster /home/ashley/kubeconfig-propsy-ko.yaml:0
 ```
 Flags:
 - listen: obvious, on which IP/port to listen (default `:8888`)
@@ -45,7 +45,7 @@ Flags:
 - servercert: Path to CERT file that will be used for the gRPC server
 - serverkey: Path to KEY file that will be used for the gRPC server (note that all the 3 TLS options need to be set to allow any form of TLS!)
 - configcluster: multiple pairs of `<path to kubeconfig>:<cluster name>` to gather PPS from. Please note, that at least one cluster name should match the zone as it will be considered as `local zone` for preferred traffic weights.
-- endpointcluster: multiple pairs of `<path to kubeconfig>:<cluster name>` to gather endpoints from. This should match PPS and `local zone` for preferred traffic
+- endpointcluster: multiple pairs of `<path to kubeconfig>:priority` to gather endpoints from. The lowest priority of the whole always gets the preferred locality traffic.
 
 Now you need to actually start your Envoy instance. There is, however, one requirement: the discovery cluster must be called `xds_cluster` as it is what the ProPsy distributes as upstream discovery cluster for endpoints.
 

@@ -144,14 +144,14 @@ func (C *ProPsyController) ResyncTLS(namespace, name string) {
 	}
 }
 
-func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, locality *propsy.Locality, isCanary bool) *propsy.ClusterConfig {
+func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int, isCanary bool) *propsy.ClusterConfig {
 	var endpointName string
 	var percent int
 	if isCanary {
-		endpointName = propsy.GenerateUniqueEndpointName(locality, pps.Namespace, pps.Spec.CanaryService)
+		endpointName = propsy.GenerateUniqueEndpointName(priority, pps.Namespace, pps.Spec.CanaryService)
 		percent = pps.Spec.CanaryPercent
 	} else {
-		endpointName = propsy.GenerateUniqueEndpointName(locality, pps.Namespace, pps.Spec.Service)
+		endpointName = propsy.GenerateUniqueEndpointName(priority, pps.Namespace, pps.Spec.Service)
 		percent = pps.Spec.Percent
 	}
 
@@ -159,7 +159,6 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, locality *pro
 		Name:        endpointName,
 		ServicePort: pps.Spec.ServicePort,
 		Endpoints:   []*propsy.Endpoint{},
-		Locality:    locality,
 	}
 
 	return &propsy.ClusterConfig{
@@ -169,6 +168,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, locality *pro
 		EndpointConfig: &endpointConfig,
 		IsCanary:       isCanary,
 		MaxRequests:    pps.Spec.MaxRequestsPerConnection,
+		Priority:       priority,
 	}
 }
 
@@ -176,8 +176,8 @@ func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.R
 	var clusterConfigs []*propsy.ClusterConfig
 
 	for i := range C.endpointControllers {
-		clusterConfig := C.NewCluster(pps, C.endpointControllers[i].locality, false)
-		clusterConfigCanary := C.NewCluster(pps, C.endpointControllers[i].locality, true)
+		clusterConfig := C.NewCluster(pps, C.endpointControllers[i].Priority, false)
+		clusterConfigCanary := C.NewCluster(pps, C.endpointControllers[i].Priority, true)
 
 		clusterConfigs = append(clusterConfigs, clusterConfig)
 		if pps.Spec.CanaryService != "" {
@@ -295,18 +295,20 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
 		lis := node.FindListener(listenerName)
 		if lis != nil {
-			if pps.Spec.CanaryService != "" {
-				lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService), C.locality.Zone)
-			}
-			lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service), C.locality.Zone)
+			for ec := range C.endpointControllers {
+				if pps.Spec.CanaryService != "" {
+					lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.endpointControllers[ec].Priority, pps.Namespace, pps.Spec.CanaryService), C.locality.Zone)
+				}
+				lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.endpointControllers[ec].Priority, pps.Namespace, pps.Spec.Service), C.locality.Zone)
 
-			logrus.Debugf("Remaining vhosts: %d", len(lis.VirtualHosts))
-			if len(lis.VirtualHosts) == 0 {
-				lis.Free()
-				node.RemoveListener(lis.Name)
-				propsy.RemoveFromEnvoy(node)
-			} else {
-				node.Update()
+				logrus.Debugf("Remaining vhosts: %d", len(lis.VirtualHosts))
+				if len(lis.VirtualHosts) == 0 {
+					lis.Free()
+					node.RemoveListener(lis.Name)
+					propsy.RemoveFromEnvoy(node)
+				} else {
+					node.Update()
+				}
 			}
 		}
 	}

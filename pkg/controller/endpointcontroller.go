@@ -25,11 +25,12 @@ type EndpointController struct {
 	endpointLister       listerv1.EndpointsLister
 	endpointListerSynced cache.InformerSynced
 
-	locality   *propsy.Locality
 	ppsCache   *propsy.ProPsyCache
+
+	Priority int
 }
 
-func NewEndpointController(endpointClient kubernetes.Interface, locality *propsy.Locality, ppsCache *propsy.ProPsyCache) (*EndpointController, error){
+func NewEndpointController(endpointClient kubernetes.Interface, priority int, ppsCache *propsy.ProPsyCache) (*EndpointController, error){
 	sharedInformers := informers.NewSharedInformerFactory(endpointClient, 10*time.Minute)
 	endpointInformer := sharedInformers.Core().V1().Endpoints()
 
@@ -38,8 +39,9 @@ func NewEndpointController(endpointClient kubernetes.Interface, locality *propsy
 		endpointLister:       endpointInformer.Lister(),
 		endpointListerSynced: endpointInformer.Informer().HasSynced,
 
-		locality: locality,
 		ppsCache: ppsCache,
+
+		Priority: priority,
 	}
 
 
@@ -73,7 +75,7 @@ func (C *EndpointController) WaitForInitialSync(stop <-chan struct{}) {
 }
 
 func (C *EndpointController) EndpointAdded(endpoint *v1.Endpoints) {
-	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
+	name := propsy.GenerateUniqueEndpointName(C.Priority, endpoint.Namespace, endpoint.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
 	if ecs == nil {
 		return
@@ -95,7 +97,7 @@ func (C *EndpointController) EndpointAdded(endpoint *v1.Endpoints) {
 }
 
 func (C *EndpointController) EndpointRemoved(endpoint *v1.Endpoints) {
-	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
+	name := propsy.GenerateUniqueEndpointName(C.Priority, endpoint.Namespace, endpoint.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
 	if ecs == nil {
 		return
@@ -112,7 +114,7 @@ func (C *EndpointController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoint
 		return
 	}
 
-	name := propsy.GenerateUniqueEndpointName(C.locality, old.Namespace, old.Name)
+	name := propsy.GenerateUniqueEndpointName(C.Priority, old.Namespace, old.Name)
 	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
 	if ecs == nil {
 		return

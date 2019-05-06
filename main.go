@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/seznam/ProPsy/pkg/controller"
 	"github.com/seznam/ProPsy/pkg/propsy"
 	"github.com/sirupsen/logrus"
@@ -11,20 +12,26 @@ import (
 	"k8s.io/klog"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	clientset "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
 )
 
-type ConnectedCluster struct {
+type EndpointCluster struct {
+	KubeconfigPath string // empty for in-cluster
+	Priority       int
+}
+
+type ConfigCluster struct {
 	KubeconfigPath string // empty for in-cluster
 	Zone           string
 }
 
 //var localities map[string]*propsy.Locality
 
-type EndpointClusters []ConnectedCluster
-type ConfigClusters []ConnectedCluster
+type EndpointClusters []EndpointCluster
+type ConfigClusters []ConfigCluster
 
 func (i EndpointClusters) String() string {
 	return "wat"
@@ -40,7 +47,17 @@ func (i EndpointClusters) Set(flag string) error {
 		return errors.New("not enough or too many parts in connected clusters")
 	}
 
-	endpointClusters = append(endpointClusters, ConnectedCluster{parts[0], parts[1]})
+	priority, err := strconv.ParseInt(parts[1], 10, 32)
+	if err != nil {
+		return errors.New(fmt.Sprintf("wrong priority: %s", err.Error()))
+	}
+	for i := range endpointClusters {
+		if endpointClusters[i].Priority == int(priority) {
+			return errors.New(fmt.Sprintf("this priority has been assigned already to %s", endpointClusters[i].KubeconfigPath))
+		}
+	}
+
+	endpointClusters = append(endpointClusters, EndpointCluster{parts[0], int(priority)})
 
 	return nil
 }
@@ -51,7 +68,7 @@ func (i ConfigClusters) Set(flag string) error {
 		return errors.New("not enough or too many parts in connected clusters")
 	}
 
-	configClusters = append(configClusters, ConnectedCluster{parts[0], parts[1]})
+	configClusters = append(configClusters, ConfigCluster{parts[0], parts[1]})
 
 	return nil
 }
@@ -102,7 +119,7 @@ func main() {
 	var ecs []*controller.EndpointController
 
 	for i := 0; i < len(endpointClusters); i++ {
-		logrus.Infof("Locality: %s", endpointClusters[i].Zone)
+		logrus.Infof("Priority: %d", endpointClusters[i].Priority)
 		cfg, err := clientcmd.BuildConfigFromFlags("", endpointClusters[i].KubeconfigPath)
 		if err != nil {
 			logrus.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -112,10 +129,9 @@ func main() {
 			logrus.Fatalf("Error building kubernetes clientset: %s", err.Error())
 		}
 
-		locality := propsy.Locality{Zone: endpointClusters[i].Zone}
 		//localities[endpointClusters[i].Zone] = &locality
 
-		ec, _ := controller.NewEndpointController(kubeClient, &locality, cache)
+		ec, _ := controller.NewEndpointController(kubeClient, endpointClusters[i].Priority, cache)
 		ec.WaitForInitialSync(nil)
 		ecs = append(ecs, ec)
 	}
