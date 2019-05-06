@@ -61,32 +61,7 @@ func Test_NewListenerConfig(t *testing.T) {
 				PrefixRewrite: "/",
 				PathPrefix:    "/foobar/",
 				Timeout:       10 * time.Millisecond,
-				Clusters: []*propsy.ClusterConfig{{
-					Name:           "ko--SomeService",
-					ConnectTimeout: 1234,
-					MaxRequests:    3,
-					Weight:         99,
-					IsCanary:       false,
-					EndpointConfig: &propsy.EndpointConfig{
-						Name:        "ko--SomeService",
-						Endpoints:   []*propsy.Endpoint{},
-						Locality:    &propsy.Locality{Zone: "ko"},
-						ServicePort: 6010,
-					},
-				},
-					{
-						Name:           "ko--CanaryService",
-						ConnectTimeout: 1234,
-						MaxRequests:    3,
-						Weight:         1,
-						IsCanary:       true,
-						EndpointConfig: &propsy.EndpointConfig{
-							Name:        "ko--CanaryService",
-							Endpoints:   []*propsy.Endpoint{},
-							Locality:    &propsy.Locality{Zone: "ko"},
-							ServicePort: 6010,
-						},
-					}},
+				Clusters:      nil,
 			}},
 		}},
 	}

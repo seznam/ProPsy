@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	propsyv1 "github.com/seznam/ProPsy/pkg/apis/propsy/v1"
 	propsyclient "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
 	ppsv1 "github.com/seznam/ProPsy/pkg/client/clientset/versioned/typed/propsy/v1"
@@ -20,18 +21,11 @@ import (
 	"time"
 )
 
-const STATIC_WEIGHT_TODO = 1 // TODO make better if needed?
-const CANARY_POSTFIX = "-canary"
-
 // a single propsy controller that reads from kubernetes
 type ProPsyController struct {
 	kubeClient kubernetes.Interface
 	locality   *propsy.Locality
 	ppsCache   *propsy.ProPsyCache
-
-	endpointGetter       corev1.EndpointsGetter
-	endpointLister       listerv1.EndpointsLister
-	endpointListerSynced cache.InformerSynced
 
 	secretGetter       corev1.SecretsGetter
 	secretLister       listerv1.SecretLister
@@ -40,80 +34,52 @@ type ProPsyController struct {
 	ppsGetter       ppsv1.ProPsyServicesGetter
 	ppsLister       ppslisterv1.ProPsyServiceLister
 	ppsListerSynced cache.InformerSynced
+
+	endpointControllers []*EndpointController
 }
 
-func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsyclient.Interface, locality *propsy.Locality, ppsCache *propsy.ProPsyCache) (*ProPsyController, error) {
+func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsyclient.Interface, locality *propsy.Locality, ppsCache *propsy.ProPsyCache, endpointControllers []*EndpointController) (*ProPsyController, error) {
 	sharedInformers := informers.NewSharedInformerFactory(endpointClient, 10*time.Second)
-	endpointInformer := sharedInformers.Core().V1().Endpoints()
 	secretInformer := sharedInformers.Core().V1().Secrets()
 
 	var propsy ProPsyController
 
-	if crdClient != nil {
-		customInformers := informerext.NewSharedInformerFactory(crdClient, 10*time.Second)
-		propsyInformer := customInformers.Propsy().V1().ProPsyServices()
-		propsy = ProPsyController{
-			kubeClient: endpointClient,
-			locality:   locality,
-			ppsCache:   ppsCache,
+	if crdClient == nil {
+		return nil, errors.New("missing crd client")
+	}
+	customInformers := informerext.NewSharedInformerFactory(crdClient, 10*time.Second)
+	propsyInformer := customInformers.Propsy().V1().ProPsyServices()
+	propsy = ProPsyController{
+		kubeClient: endpointClient,
+		locality:   locality,
+		ppsCache:   ppsCache,
 
-			endpointGetter:       endpointClient.CoreV1(),
-			endpointLister:       endpointInformer.Lister(),
-			endpointListerSynced: endpointInformer.Informer().HasSynced,
+		secretGetter:       endpointClient.CoreV1(),
+		secretLister:       secretInformer.Lister(),
+		secretListerSynced: secretInformer.Informer().HasSynced,
 
-			secretGetter:       endpointClient.CoreV1(),
-			secretLister:       secretInformer.Lister(),
-			secretListerSynced: secretInformer.Informer().HasSynced,
+		ppsGetter:       crdClient.PropsyV1(),
+		ppsLister:       propsyInformer.Lister(),
+		ppsListerSynced: propsyInformer.Informer().HasSynced,
 
-			ppsGetter:       crdClient.PropsyV1(),
-			ppsLister:       propsyInformer.Lister(),
-			ppsListerSynced: propsyInformer.Informer().HasSynced,
-		}
-
-		propsyInformer.Informer().AddEventHandler(
-			cache.ResourceEventHandlerFuncs{
-				AddFunc: func(obj interface{}) {
-					log.Printf("Add propsy: %+v", obj)
-					propsy.PPSAdded(obj.(*propsyv1.ProPsyService))
-				},
-				UpdateFunc: func(oldObj, newObj interface{}) {
-					propsy.PPSChanged(oldObj.(*propsyv1.ProPsyService), newObj.(*propsyv1.ProPsyService))
-				},
-				DeleteFunc: func(obj interface{}) {
-					propsy.PPSRemoved(obj.(*propsyv1.ProPsyService))
-				},
-			},
-		)
-		customInformers.Start(nil)
-	} else {
-		propsy = ProPsyController{
-			kubeClient: endpointClient,
-			locality:   locality,
-			ppsCache:   ppsCache,
-
-			endpointGetter:       endpointClient.CoreV1(),
-			endpointLister:       endpointInformer.Lister(),
-			endpointListerSynced: endpointInformer.Informer().HasSynced,
-
-			secretGetter:       endpointClient.CoreV1(),
-			secretLister:       secretInformer.Lister(),
-			secretListerSynced: secretInformer.Informer().HasSynced,
-		}
+		endpointControllers: endpointControllers,
 	}
 
-	endpointInformer.Informer().AddEventHandler(
+	propsyInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				propsy.EndpointAdded(obj.(*v1.Endpoints))
+				log.Printf("Add propsy: %+v", obj)
+				propsy.PPSAdded(obj.(*propsyv1.ProPsyService))
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				propsy.EndpointChanged(oldObj.(*v1.Endpoints), newObj.(*v1.Endpoints))
+				propsy.PPSChanged(oldObj.(*propsyv1.ProPsyService), newObj.(*propsyv1.ProPsyService))
 			},
 			DeleteFunc: func(obj interface{}) {
-				propsy.EndpointRemoved(obj.(*v1.Endpoints))
+				propsy.PPSRemoved(obj.(*propsyv1.ProPsyService))
 			},
 		},
 	)
+	customInformers.Start(nil)
 
 	secretInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -135,7 +101,7 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 }
 
 func (C *ProPsyController) WaitForInitialSync(stop <-chan struct{}) {
-	if !cache.WaitForCacheSync(stop, C.endpointListerSynced, C.ppsListerSynced) {
+	if !cache.WaitForCacheSync(stop, C.ppsListerSynced) {
 		log.Fatal("Error waiting to sync initial cache")
 		return
 	}
@@ -178,71 +144,14 @@ func (C *ProPsyController) ResyncTLS(namespace, name string) {
 	}
 }
 
-func (C *ProPsyController) EndpointAdded(endpoint *v1.Endpoints) {
-	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
-	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
-	if ecs == nil {
-		return
-	}
-
-	// it seems to be a tracked service. Feed in all the endpoints...
-	for i := 0; i < len(endpoint.Subsets); i++ {
-		for j := 0; j < len(endpoint.Subsets[i].Addresses); j++ {
-			ecs.AddEndpoint(endpoint.Subsets[i].Addresses[j].IP, STATIC_WEIGHT_TODO, true)
-		}
-		for j := 0; j < len(endpoint.Subsets[i].NotReadyAddresses); j++ {
-			ecs.AddEndpoint(endpoint.Subsets[i].NotReadyAddresses[j].IP, STATIC_WEIGHT_TODO, false)
-		}
-	}
-
-	for i := range nodes {
-		nodes[i].Update()
-	}
-}
-
-func (C *ProPsyController) EndpointRemoved(endpoint *v1.Endpoints) {
-	name := propsy.GenerateUniqueEndpointName(C.locality, endpoint.Namespace, endpoint.Name)
-	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
-	if ecs == nil {
-		return
-	}
-	ecs.Endpoints = []*propsy.Endpoint{}
-
-	for i := range nodes {
-		nodes[i].Update()
-	}
-}
-
-func (C *ProPsyController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoints) {
-	if reflect.DeepEqual(old, new) {
-		return
-	}
-
-	name := propsy.GenerateUniqueEndpointName(C.locality, old.Namespace, old.Name)
-	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
-	if ecs == nil {
-		return
-	}
-
-	C.ppsCache.MutexEndpoints.Lock() // lock to prevent other localities resetting before we fill in ourselves to avoid sending config with empty data
-	defer C.ppsCache.MutexEndpoints.Unlock()
-
-	ecs.Endpoints = []*propsy.Endpoint{} // clear the existing from this locality. do NOT update tracked nodes until we feed the new ones in!!
-	C.EndpointAdded(new)                 // feed in new ones
-
-	for j := range nodes {
-		nodes[j].Update()
-	}
-}
-
-func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool) *propsy.ClusterConfig {
+func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, locality *propsy.Locality, isCanary bool) *propsy.ClusterConfig {
 	var endpointName string
 	var percent int
 	if isCanary {
-		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.CanaryService)
+		endpointName = propsy.GenerateUniqueEndpointName(locality, pps.Namespace, pps.Spec.CanaryService)
 		percent = pps.Spec.CanaryPercent
 	} else {
-		endpointName = propsy.GenerateUniqueEndpointName(C.locality, pps.Namespace, pps.Spec.Service)
+		endpointName = propsy.GenerateUniqueEndpointName(locality, pps.Namespace, pps.Spec.Service)
 		percent = pps.Spec.Percent
 	}
 
@@ -250,7 +159,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 		Name:        endpointName,
 		ServicePort: pps.Spec.ServicePort,
 		Endpoints:   []*propsy.Endpoint{},
-		Locality:    C.locality,
+		Locality:    locality,
 	}
 
 	return &propsy.ClusterConfig{
@@ -264,12 +173,16 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, isCanary bool
 }
 
 func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.RouteConfig {
-	clusterConfig := C.NewCluster(pps, false)
-	clusterConfigCanary := C.NewCluster(pps, true)
+	var clusterConfigs []*propsy.ClusterConfig
 
-	clusterConfigs := []*propsy.ClusterConfig{clusterConfig}
-	if pps.Spec.CanaryService != "" {
-		clusterConfigs = append(clusterConfigs, clusterConfigCanary)
+	for i := range C.endpointControllers {
+		clusterConfig := C.NewCluster(pps, C.endpointControllers[i].locality, false)
+		clusterConfigCanary := C.NewCluster(pps, C.endpointControllers[i].locality, true)
+
+		clusterConfigs = append(clusterConfigs, clusterConfig)
+		if pps.Spec.CanaryService != "" {
+			clusterConfigs = append(clusterConfigs, clusterConfigCanary)
+		}
 	}
 
 	routeName, path := propsy.GenerateRouteName(pps.Spec.PathPrefix)
@@ -330,16 +243,8 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 }
 
 func (C *ProPsyController) ResyncEndpoints(pps *propsyv1.ProPsyService) {
-	endpoints, err := C.endpointGetter.Endpoints(pps.Namespace).Get(pps.Spec.Service, v12.GetOptions{})
-	if err == nil {
-		C.EndpointAdded(endpoints)
-	}
-
-	if pps.Spec.CanaryService != "" {
-		endpointsCanary, err := C.endpointGetter.Endpoints(pps.Namespace).Get(pps.Spec.CanaryService, v12.GetOptions{})
-		if err == nil {
-			C.EndpointAdded(endpointsCanary)
-		}
+	for ctrl := range C.endpointControllers {
+		C.endpointControllers[ctrl].ResyncEndpoints(pps.Namespace, pps.Spec.Service, pps.Spec.CanaryService)
 	}
 }
 
@@ -358,9 +263,8 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 		return
 	}
 
-	C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[0].EndpointConfig, nodes)
-	if pps.Spec.CanaryService != "" {
-		C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[1].EndpointConfig, nodes)
+	for i := range listenerConfig.VirtualHosts[0].Routes[0].Clusters {
+		C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[i].EndpointConfig, nodes)
 	}
 
 	for node := range nodes {
@@ -409,8 +313,6 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 }
 
 func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1.ProPsyService) {
-	// TODO
-	logrus.Printf("Content of cache: %+v", C.ppsCache)
 	if reflect.DeepEqual(old, new) {
 		return
 	}
@@ -424,7 +326,6 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 			C.ResyncEndpoints(new)
 		}
 	}
-
 }
 
 func DoesListContain(haystack []string, needle string) bool {

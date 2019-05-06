@@ -21,35 +21,53 @@ type ConnectedCluster struct {
 	Zone           string
 }
 
-var localities map[string]*propsy.Locality
+//var localities map[string]*propsy.Locality
 
-type ConnectedClusters []ConnectedCluster
+type EndpointClusters []ConnectedCluster
+type ConfigClusters []ConnectedCluster
 
-func (i ConnectedClusters) String() string {
+func (i EndpointClusters) String() string {
 	return "wat"
 }
 
-func (i ConnectedClusters) Set(flag string) error {
+func (i ConfigClusters) String() string {
+	return "wat"
+}
+
+func (i EndpointClusters) Set(flag string) error {
 	parts := strings.Split(flag, ":")
 	if len(parts) < 2 || len(parts) > 2 {
 		return errors.New("not enough or too many parts in connected clusters")
 	}
 
-	connectedClusters = append(connectedClusters, ConnectedCluster{parts[0], parts[1]})
+	endpointClusters = append(endpointClusters, ConnectedCluster{parts[0], parts[1]})
 
 	return nil
 }
 
-var connectedClusters ConnectedClusters
+func (i ConfigClusters) Set(flag string) error {
+	parts := strings.Split(flag, ":")
+	if len(parts) < 2 || len(parts) > 2 {
+		return errors.New("not enough or too many parts in connected clusters")
+	}
+
+	configClusters = append(configClusters, ConnectedCluster{parts[0], parts[1]})
+
+	return nil
+}
+
+var endpointClusters EndpointClusters
+var configClusters ConfigClusters
 var debugMode bool
 var listenConfig string
 
 func init() {
-	flag.Var(&connectedClusters, "cluster", "Kubernetes cluster map kubeconfigPath:zone")
+	flag.Var(&endpointClusters, "endpointcluster", "Kubernetes endpoint cluster map kubeconfigPath:zone")
+	flag.Var(&configClusters, "configcluster", "Kubernetes config cluster map kubeconfigPath:zone")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug output")
 	flag.StringVar(&listenConfig, "listen", ":8888", "IP:Port to listen on")
 
-	localities = map[string]*propsy.Locality{}
+	//localities = map[string]*propsy.Locality{}
 }
 
 func main() {
@@ -66,8 +84,8 @@ func main() {
 
 	propsy.InitGRPCServer()
 
-	if len(connectedClusters) == 0 {
-		logrus.Fatal("There are zero clusters defined. Exiting!")
+	if len(endpointClusters) == 0 || len(configClusters) == 0 {
+		logrus.Fatal("There are no endpoint or config clusters defined. Exiting!")
 	}
 
 	cache := propsy.NewProPsyCache()
@@ -79,10 +97,34 @@ func main() {
 		}
 	}()
 
-	logrus.Info("Almost ready, starting a controller loop to generate configs")
+	logrus.Info("Starting all the endpoint controllers")
 
-	for i := 0; i < len(connectedClusters); i++ {
-		cfg, err := clientcmd.BuildConfigFromFlags("", connectedClusters[i].KubeconfigPath)
+	var ecs []*controller.EndpointController
+
+	for i := 0; i < len(endpointClusters); i++ {
+		logrus.Infof("Locality: %s", endpointClusters[i].Zone)
+		cfg, err := clientcmd.BuildConfigFromFlags("", endpointClusters[i].KubeconfigPath)
+		if err != nil {
+			logrus.Fatalf("Error building kubeconfig: %s", err.Error())
+		}
+		kubeClient, err := kubernetes.NewForConfig(cfg)
+		if err != nil {
+			logrus.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		}
+
+		locality := propsy.Locality{Zone: endpointClusters[i].Zone}
+		//localities[endpointClusters[i].Zone] = &locality
+
+		ec, _ := controller.NewEndpointController(kubeClient, &locality, cache)
+		ec.WaitForInitialSync(nil)
+		ecs = append(ecs, ec)
+	}
+
+	logrus.Info("Starting all the propsy controllers")
+
+	for i := 0; i < len(configClusters); i++ {
+		logrus.Infof("Locality: %s", configClusters[i].Zone)
+		cfg, err := clientcmd.BuildConfigFromFlags("", configClusters[i].KubeconfigPath)
 		if err != nil {
 			logrus.Fatalf("Error building kubeconfig: %s", err.Error())
 		}
@@ -96,28 +138,16 @@ func main() {
 			logrus.Fatalf("Error building kubernetes crd clientset: %s", err.Error())
 		}
 
-		locality := propsy.Locality{Zone: connectedClusters[i].Zone}
-		localities[connectedClusters[i].Zone] = &locality
+		locality := propsy.Locality{Zone: configClusters[i].Zone}
+		//localities[configClusters[i].Zone] = &locality
 
-		controller, _ := controller.NewProPsyController(kubeClient, crdClient, &locality, cache)
-		controller.WaitForInitialSync(nil)
+		ppsc, _ := controller.NewProPsyController(kubeClient, crdClient, &locality, cache, ecs)
+		ppsc.WaitForInitialSync(nil)
 	}
+
 
 	cache.ProcessQueueOnce()
 
 	// todo flip ready flag, the best we can do
 	cache.Run()
-
-	//informerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second * 30)
-	/*stuff, err := exampleClient.PropsyV1().ProPsyServices("").List(v1.ListOptions{})
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("found: %+v", stuff)
-	/*
-		stuff2, _ := kubeClient.AppsV1().Deployments("").List(v1.ListOptions{})
-
-		fmt.Printf("blabla: %+v", stuff2)
-	*/
 }
