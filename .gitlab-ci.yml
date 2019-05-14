@@ -5,7 +5,7 @@ stages:
 
 build:
   stage: build
-  image: docker.dev.dszn.cz/golang1.10:stretch
+  image: docker.dev.dszn.cz/golang:stretch
   script:
   - mkdir -p /GO/src/github.com/seznam/
   - ln -s $(pwd) /GO/src/github.com/seznam/ProPsy
@@ -19,7 +19,7 @@ build:
 
 buildcurl:
   stage: build
-  image: docker.dev.dszn.cz/golang1.10:stretch
+  image: docker.dev.dszn.cz/golang:stretch
   script:
   - go get github.com/fullstorydev/grpcurl
   - go install github.com/fullstorydev/grpcurl/cmd/grpcurl
@@ -32,7 +32,7 @@ buildcurl:
 
 testsrc:
   stage: test
-  image: docker.dev.dszn.cz/golang1.10:stretch
+  image: docker.dev.dszn.cz/golang:stretch
   script:
   - mkdir -p /GO/src/github.com/seznam/
   - ln -s $(pwd) /GO/src/github.com/seznam/ProPsy
