@@ -68,6 +68,27 @@ spec:
               type: string
             tlsCertificateSecret:
               type: string
+            healthCheckTimeout:
+              type: integer
+            healthCheckInterval:
+              type: integer
+            healthCheckUnhealthyTreshold:
+              type: integer
+            healthCheckHealthyTreshold:
+              type: integer
+            healthCheckReuseConnection:
+              type: bool
+            healthCheckType:
+              type: string
+              enum:
+              - HTTP
+              - HTTP2
+              - TCP
+              - GRPC
+            healthCheckHTTPPath:
+              type: string
+            healthCheckHTTPHost:
+              type: string
   additionalPrinterColumns:
   - name: Service
     type: string

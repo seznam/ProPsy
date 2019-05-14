@@ -144,6 +144,33 @@ func (C *ProPsyController) ResyncTLS(namespace, name string) {
 	}
 }
 
+func (C *ProPsyController) ExtractHealthCheck(pps *propsyv1.ProPsyService) *propsy.HealthCheckConfig {
+	var hcType propsy.HealthCheckType
+	switch pps.Spec.HealthCheckHealthChecker {
+	case "HTTP":
+		hcType = propsy.HTTPHealthCheck
+	case "HTTP2":
+		hcType = propsy.HTTP2HealthCheck
+	case "TCP":
+		hcType = propsy.TCPHealthCheck
+	case "GRPC":
+		hcType = propsy.GRPCHealthCheck
+	default:
+		return nil
+	}
+
+	return &propsy.HealthCheckConfig{
+		HTTPHost:          pps.Spec.HealthCheckHTTPHost,
+		HTTPPath:          pps.Spec.HealthCheckHTTPPath,
+		ReuseConnection:   pps.Spec.HealthCheckReuseConnection,
+		UnhealthyTreshold: pps.Spec.HealthCheckUnhealthyTreshold,
+		HealthyTreshold:   pps.Spec.HealthCheckHealthyTreshold,
+		Timeout:           time.Duration(pps.Spec.HealthCheckTimeout) * time.Millisecond,
+		Interval:          time.Duration(pps.Spec.HealthCheckInterval) * time.Millisecond,
+		HealthChecker:     hcType,
+	}
+}
+
 func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int, isCanary bool) *propsy.ClusterConfig {
 	var endpointName string
 	var percent int
@@ -161,6 +188,8 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int,
 		Endpoints:   []*propsy.Endpoint{},
 	}
 
+	hcConfig := C.ExtractHealthCheck(pps)
+
 	return &propsy.ClusterConfig{
 		ConnectTimeout: pps.Spec.ConnectTimeout,
 		Name:           endpointName,
@@ -169,6 +198,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int,
 		IsCanary:       isCanary,
 		MaxRequests:    pps.Spec.MaxRequestsPerConnection,
 		Priority:       priority,
+		HealthCheck:    hcConfig,
 	}
 }
 
@@ -305,9 +335,11 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 				if len(lis.VirtualHosts) == 0 {
 					lis.Free()
 					node.RemoveListener(lis.Name)
-					propsy.RemoveFromEnvoy(node)
-				} else {
+				}
+				if len(node.Listeners) > 0 {
 					node.Update()
+				} else {
+					propsy.RemoveFromEnvoy(node)
 				}
 			}
 		}

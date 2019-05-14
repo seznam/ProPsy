@@ -63,7 +63,7 @@ func (L *Locality) ToEnvoy() *core.Locality {
 }
 
 func (C *ClusterConfig) ToEnvoy() *v2.Cluster {
-	return ClusterToEnvoy(C.Name, C.ConnectTimeout, C.MaxRequests)
+	return ClusterToEnvoy(C.Name, C.ConnectTimeout, C.MaxRequests, C.HealthCheck)
 }
 
 func (V *VirtualHost) ToEnvoy(routes []route.Route) route.VirtualHost {
@@ -160,10 +160,55 @@ func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoad
 	return endpoints
 }
 
-func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int) *v2.Cluster {
+func (H *HealthCheckConfig) ToEnvoy() *core.HealthCheck {
+	if H == nil {
+		return nil
+	}
+
+	hc := &core.HealthCheck{
+		Interval: &H.Interval,
+		Timeout:  &H.Timeout,
+		ReuseConnection: &types.BoolValue{
+			Value: H.ReuseConnection,
+		},
+		HealthyThreshold:   UInt32FromInteger(H.HealthyTreshold),
+		UnhealthyThreshold: UInt32FromInteger(H.UnhealthyTreshold),
+	}
+
+	switch H.HealthChecker {
+	case HTTPHealthCheck, HTTP2HealthCheck:
+		hc.HealthChecker = &core.HealthCheck_HttpHealthCheck_{
+			HttpHealthCheck: &core.HealthCheck_HttpHealthCheck{
+				Path:     H.HTTPPath,
+				Host:     H.HTTPHost,
+				UseHttp2: H.HealthChecker == HTTP2HealthCheck,
+			},
+		}
+	case GRPCHealthCheck:
+		hc.HealthChecker = &core.HealthCheck_GrpcHealthCheck_{
+			GrpcHealthCheck: &core.HealthCheck_GrpcHealthCheck{},
+		}
+	case TCPHealthCheck:
+		hc.HealthChecker = &core.HealthCheck_TcpHealthCheck_{
+			TcpHealthCheck: &core.HealthCheck_TcpHealthCheck{},
+		}
+	default:
+		return nil
+	}
+
+	return hc
+}
+
+func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int, healthCheck *HealthCheckConfig) *v2.Cluster {
 	maxRequestsPtr := UInt32FromInteger(maxRequests)
 	if maxRequests == 0 {
 		maxRequestsPtr = nil
+	}
+
+	hc := healthCheck.ToEnvoy()
+	var hcs []*core.HealthCheck
+	if hc != nil { // only assign when hc exists, having a null item is bad
+		hcs = append(hcs, hc)
 	}
 
 	return &v2.Cluster{
@@ -197,6 +242,7 @@ func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int) *v2.Clus
 			},
 		},
 		MaxRequestsPerConnection: maxRequestsPtr,
+		HealthChecks:             hcs,
 	}
 }
 

@@ -14,7 +14,6 @@ import (
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
-
 	"github.com/seznam/ProPsy/pkg/propsy"
 )
 
@@ -25,16 +24,16 @@ type EndpointController struct {
 	endpointLister       listerv1.EndpointsLister
 	endpointListerSynced cache.InformerSynced
 
-	ppsCache   *propsy.ProPsyCache
+	ppsCache *propsy.ProPsyCache
 
 	Priority int
 }
 
-func NewEndpointController(endpointClient kubernetes.Interface, priority int, ppsCache *propsy.ProPsyCache) (*EndpointController, error){
+func NewEndpointController(endpointClient kubernetes.Interface, priority int, ppsCache *propsy.ProPsyCache) (*EndpointController, error) {
 	sharedInformers := informers.NewSharedInformerFactory(endpointClient, 10*time.Minute)
 	endpointInformer := sharedInformers.Core().V1().Endpoints()
 
-	ec := EndpointController {
+	ec := EndpointController{
 		endpointGetter:       endpointClient.CoreV1(),
 		endpointLister:       endpointInformer.Lister(),
 		endpointListerSynced: endpointInformer.Informer().HasSynced,
@@ -43,7 +42,6 @@ func NewEndpointController(endpointClient kubernetes.Interface, priority int, pp
 
 		Priority: priority,
 	}
-
 
 	endpointInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{

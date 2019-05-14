@@ -152,7 +152,7 @@ func generateSampleNode() NodeConfig {
 			ConnectTimeout: 5000,
 			Priority:       0,
 			EndpointConfig: &EndpointConfig{
-				Name: "foobars",
+				Name:        "foobars",
 				ServicePort: 456,
 				Endpoints: []*Endpoint{
 					{
@@ -210,4 +210,16 @@ func TestListeners(T *testing.T) {
 	testListenerPrivate("0:8080", "0.0.0.0", 8080)
 	testListenerPrivate("6666", "0.0.0.0", 6666)
 	testListenerPrivate("1.2.2.1:8888", "1.2.2.1", 8888)
+}
+
+func TestRouteGenerator(T *testing.T) {
+	test, path := GenerateRouteName("foobar/baz")
+	assertString(test, "_foobar_baz")
+	assertString(path, "/foobar/baz")
+	test, path = GenerateRouteName("")
+	assertString(test, "_")
+	assertString(path, "/")
+	test, path = GenerateRouteName("/foo")
+	assertString(test, "_foo")
+	assertString(path, "/foo")
 }

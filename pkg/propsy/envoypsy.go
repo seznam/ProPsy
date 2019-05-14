@@ -130,9 +130,10 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 
 				// first setup local-zone cluster
 				endpointsAll := _route.GeneratePrioritizedEndpoints(LocalZone)
+				localCluster := _route.GetLowestPriorityCluster()
 
 				addEndpoints := endpointsAll.ToEnvoy(_listener.Name + "_" + _route.GenerateUniqueRouteName())
-				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests)
+				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, localCluster.HealthCheck)
 				routedCluster := WeightedClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), localZoneWeight)
 
 				sendClusters = append(sendClusters, cluster)
@@ -160,7 +161,8 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 					localityEndpoints := ClusterLoadAssignment{_cluster.EndpointConfig.ToEnvoy(0, 1)}
 
 					addEndpoints := localityEndpoints.ToEnvoy(_cluster.Name)
-					cluster := _cluster.ToEnvoy()
+					cluster := ClusterToEnvoy(_cluster.Name, _cluster.ConnectTimeout, _cluster.MaxRequests, localCluster.HealthCheck)
+
 					routedCluster := WeightedClusterToEnvoy(_cluster.Name, weight)
 
 					sendClusters = append(sendClusters, cluster)

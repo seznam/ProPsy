@@ -22,6 +22,26 @@ const (
 	TCP
 )
 
+type HealthCheckType int
+
+const (
+	HTTPHealthCheck HealthCheckType = iota
+	HTTP2HealthCheck
+	TCPHealthCheck
+	GRPCHealthCheck
+)
+
+type HealthCheckConfig struct {
+	Timeout           time.Duration
+	Interval          time.Duration
+	UnhealthyTreshold int
+	HealthyTreshold   int
+	ReuseConnection   bool
+	HealthChecker     HealthCheckType
+	HTTPPath          string
+	HTTPHost          string
+}
+
 type ListenerConfig struct {
 	Name            string
 	Listen          string
@@ -68,6 +88,7 @@ type ClusterConfig struct {
 	IsCanary       bool
 	MaxRequests    int
 	Priority       int
+	HealthCheck    *HealthCheckConfig
 }
 
 func (C *ClusterConfig) String() string {
@@ -245,6 +266,24 @@ func (R *RouteConfig) Free() {
 		R.Clusters[i].Free()
 		R.Clusters[i] = nil
 	}
+}
+
+func (R *RouteConfig) GetLowestPriorityCluster() *ClusterConfig {
+	lowestPriority := math.MaxInt32
+	for c := range R.Clusters {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary {
+			lowestPriority = R.Clusters[c].Priority
+		}
+	}
+
+	for c := range R.Clusters {
+		if R.Clusters[c].Priority == lowestPriority {
+			return R.Clusters[c]
+		}
+	}
+
+	// better return the first cluster than nothing. Can happen if there are only canaries.
+	return R.Clusters[0]
 }
 
 func (R *RouteConfig) CalculateWeights() (

@@ -161,7 +161,6 @@ func main() {
 		ppsc.WaitForInitialSync(nil)
 	}
 
-
 	cache.ProcessQueueOnce()
 
 	// todo flip ready flag, the best we can do
