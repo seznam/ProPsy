@@ -143,7 +143,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				// now the others
 				for c := range _route.Clusters {
 					_cluster := _route.Clusters[c]
-					logrus.Debugf("Adding cluster to the cluster set: %s, %b, %s", _cluster.Name, _cluster.IsCanary, LocalZone)
+					logrus.Debugf("Adding cluster to the cluster set: %s, canary %t, %s", _cluster.Name, _cluster.IsCanary, LocalZone)
 					if _cluster.IsCanary && lowestPriorityCanary != _cluster.Priority {
 						logrus.Debugf(".. Skipping!")
 						continue // skip canaries of other zones
@@ -178,7 +178,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 
 		addListener, err := _listener.ToEnvoy(vhosts)
 		if err != nil {
-			logrus.Warnf("Error generating listener: ", err.Error())
+			logrus.Warnf("Error generating listener: %s", err.Error())
 			continue
 		}
 

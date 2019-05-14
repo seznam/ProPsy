@@ -431,7 +431,7 @@ func (E *EndpointConfig) RemoveEndpoint(host string) {
 	}
 
 	if removalI != -1 { // never remove from an array you're iterating over, although here it may be safe since we break immediately?
-		logrus.Debugf("Removing endpoint %i (host: %s)", removalI, host)
+		logrus.Debugf("Removing endpoint %d (host: %s)", removalI, host)
 		E.Endpoints[removalI] = E.Endpoints[len(E.Endpoints)-1]
 		E.Endpoints = E.Endpoints[:len(E.Endpoints)-1]
 	}
