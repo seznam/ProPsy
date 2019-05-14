@@ -42,7 +42,6 @@ func Test_NewListenerConfig(t *testing.T) {
 			ServicePort:          6010,
 			Percent:              99,
 			CanaryPercent:        1,
-			Disabled:             false,
 			TLSCertificateSecret: "",
 		},
 	}
