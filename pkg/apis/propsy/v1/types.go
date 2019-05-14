@@ -8,7 +8,6 @@ type ProPsyServiceSpec struct {
 	Service                      string   `json:"service"`
 	ServicePort                  int      `json:"servicePort"`
 	Listen                       string   `json:"listen"`
-	Disabled                     bool     `json:"disabled"`
 	Percent                      int      `json:"percent"`
 	Nodes                        []string `json:"nodes"`
 	CanaryService                string   `json:"canaryService"`

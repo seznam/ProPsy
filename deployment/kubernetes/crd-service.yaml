@@ -30,8 +30,6 @@ spec:
               type: integer
               minimum: 1
               maximum: 65535
-            disabled:
-              type: boolean
             percent:
               type: integer
               minimum: 0
@@ -94,10 +92,6 @@ spec:
     type: string
     description: Name of the service the endpoints will be stolen from
     JSONPath: .spec.service
-  - name: Disabled
-    type: boolean
-    description: Is this service disabled?
-    JSONPath: .spec.disabled
   - name: Percent
     type: integer
     description: How much percent of traffic will go into this service in this locality
