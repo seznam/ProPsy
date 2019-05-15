@@ -39,15 +39,18 @@ var LocalZone string
 var tlsVerifyCA string
 var tlsKey string
 var tlsCert string
+var tlsSkipCN bool
 
 func init() {
 	flag.StringVar(&LocalZone, "zone", "", "Local zone")
 	flag.StringVar(&tlsVerifyCA, "clientverifyca", "", "Verify CA")
 	flag.StringVar(&tlsCert, "servercert", "", "Server TLS Certificate")
 	flag.StringVar(&tlsKey, "serverkey", "", "Server TLS key")
+	flag.BoolVar(&tlsSkipCN, "peerskipcn", false, "Skip CN verify for peer certificate")
 }
 
 func InitGRPCServer() {
+	validator := &EnvoyCertificateValidator{}
 	if grpcServer == nil {
 		if tlsVerifyCA != "" && tlsKey != "" && tlsCert != "" {
 			logrus.Info("Setting up TLS")
@@ -72,12 +75,13 @@ func InitGRPCServer() {
 				ClientCAs:    certPool,
 			})
 			grpcServer = grpc.NewServer(grpc.Creds(creds))
+			validator.VerifyCN = !tlsSkipCN
 		} else {
 			grpcServer = grpc.NewServer()
 		}
 
 		snapshotCache = cache.NewSnapshotCache(false, Hasher{}, nil)
-		server = xds.NewServer(snapshotCache, nil)
+		server = xds.NewServer(snapshotCache, PropsyCallbacks{cache: validator})
 		discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
 		api.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
 		api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
