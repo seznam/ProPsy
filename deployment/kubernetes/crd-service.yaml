@@ -20,7 +20,7 @@ spec:
     openAPIV3Schema:
       properties:
         spec:
-          required: ["service", "nodes", "percent", "servicePort", "listen", "timeout"]
+          required: ["service", "nodes", "percent", "servicePort", "listen", "timeout", "connectTimeout"]
           properties:
             listen:
               type: string
