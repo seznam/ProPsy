@@ -62,5 +62,6 @@ spec:
   canaryService: test-e2e-canary
   canaryPercent: 5
   type: HTTP
+  connectTimeout: 500
 
 
