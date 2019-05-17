@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	clientset "github.com/seznam/ProPsy/pkg/client/clientset/versioned"
 )
@@ -77,12 +78,16 @@ var endpointClusters EndpointClusters
 var configClusters ConfigClusters
 var debugMode bool
 var listenConfig string
+var listenHealth string
+
+var healthServer *propsy.HealthServer
 
 func init() {
 	flag.Var(&endpointClusters, "endpointcluster", "Kubernetes endpoint cluster map kubeconfigPath:zone")
 	flag.Var(&configClusters, "configcluster", "Kubernetes config cluster map kubeconfigPath:zone")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug output")
 	flag.StringVar(&listenConfig, "listen", ":8888", "IP:Port to listen on")
+	flag.StringVar(&listenHealth, "listenhealth", ":9999", "IP:Port to listen on for health endpoints")
 
 	//localities = map[string]*propsy.Locality{}
 }
@@ -98,6 +103,10 @@ func main() {
 	}
 
 	logrus.SetOutput(os.Stdout)
+
+	healthServer = propsy.NewHealthServer(listenHealth)
+	healthServer.SetHealthy(true)
+	healthServer.Start()
 
 	propsy.InitGRPCServer()
 
@@ -163,6 +172,14 @@ func main() {
 
 	cache.ProcessQueueOnce()
 
-	// todo flip ready flag, the best we can do
+	// there's no easy way to discover that the initial sync has happened
+	// so let's wait for 3 seconds of no changes before we flip the readiness flag
+	for time.Now().Sub(cache.LatestPPSAdded) < time.Second * 3 {
+		time.Sleep(time.Second)
+		logrus.Debug("waiting for initial PPS to be added")
+	}
+	logrus.Info("Enabling readiness flag")
+	healthServer.SetReady(true)
+
 	cache.Run()
 }

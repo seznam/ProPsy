@@ -312,6 +312,8 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 	}
 	logrus.Infof("cache content: %+v", C.ppsCache)
 	C.ppsCache.DumpNodes()
+
+	C.ppsCache.LatestPPSAdded = time.Now() // force the time now to be the latest
 }
 
 func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {

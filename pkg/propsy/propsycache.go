@@ -31,6 +31,8 @@ type ProPsyCache struct {
 
 	mu             sync.Mutex
 	MutexEndpoints sync.Mutex
+
+	LatestPPSAdded time.Time
 }
 
 func NewProPsyCache() *ProPsyCache {
