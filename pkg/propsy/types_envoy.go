@@ -134,10 +134,10 @@ func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssig
 func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoadAssignment {
 	var endpoints []endpoint.LocalityLbEndpoints
 
-	// find the lowest priority
+	// find the lowest local priority
 	lowestPriority := math.MaxInt32
 	for c := range R.Clusters {
-		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary && R.Clusters[c].EndpointConfig.Endpoints != nil {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary && R.Clusters[c].EndpointConfig.Endpoints != nil && R.Clusters[c].IsLocalCluster() {
 			lowestPriority = R.Clusters[c].Priority
 		}
 	}
@@ -147,6 +147,11 @@ func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoad
 		// skip canaries for this
 		if _cluster.IsCanary {
 			continue
+		}
+
+		if _cluster.Priority != lowestPriority &&
+			(_cluster.EndpointConfig.Endpoints == nil || len(_cluster.EndpointConfig.Endpoints) == 0) {
+			continue // skip non-lowest priority other clusters, they just clobber the output
 		}
 
 		priority := 1
@@ -331,7 +336,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 }
 
 func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWeight) route.Route {
-	totalWeight, _, _, _, _, _, _, _ := R.CalculateWeights()
+	totalWeight, _, _, _, _, _ := R.CalculateWeights()
 
 	return route.Route{
 		Match: route.RouteMatch{

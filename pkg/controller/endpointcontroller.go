@@ -28,9 +28,10 @@ type EndpointController struct {
 	ppsCache *propsy.ProPsyCache
 
 	Priority int
+	Zone     string
 }
 
-func NewEndpointController(endpointClient kubernetes.Interface, priority int, ppsCache *propsy.ProPsyCache) (*EndpointController, error) {
+func NewEndpointController(endpointClient kubernetes.Interface, priority int, zone string, ppsCache *propsy.ProPsyCache) (*EndpointController, error) {
 	sharedInformers := informers.NewSharedInformerFactory(endpointClient, 10*time.Minute)
 	endpointInformer := sharedInformers.Core().V1().Endpoints()
 
@@ -42,6 +43,7 @@ func NewEndpointController(endpointClient kubernetes.Interface, priority int, pp
 		ppsCache: ppsCache,
 
 		Priority: priority,
+		Zone:     zone,
 	}
 
 	endpointInformer.Informer().AddEventHandler(

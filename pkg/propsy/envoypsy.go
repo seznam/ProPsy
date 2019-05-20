@@ -125,7 +125,9 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				_route := _vhost.Routes[r]
 				var routedClusters []*route.WeightedCluster_ClusterWeight
 
-				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests, lowestPriority, lowestPriorityCanary := _route.CalculateWeights()
+				totalWeight, localZoneWeight, otherZoneWeight, canariesWeight, connectTimeout, maxRequests := _route.CalculateWeights()
+				localCluster := _route.GetLocalBestCluster(false)
+				localClusterCanary := _route.GetLocalBestCluster(true)
 
 				logrus.Debugf("total: %d, local: %d, other: %d, clusters: %d", totalWeight, localZoneWeight, otherZoneWeight, len(_route.Clusters))
 				for i := range _route.Clusters {
@@ -134,10 +136,13 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 
 				// first setup local-zone cluster
 				endpointsAll := _route.GeneratePrioritizedEndpoints(LocalZone)
-				localCluster := _route.GetLowestPriorityCluster()
 
 				addEndpoints := endpointsAll.ToEnvoy(_listener.Name + "_" + _route.GenerateUniqueRouteName())
-				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, localCluster.HealthCheck)
+				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, nil)
+
+				if localCluster != nil {
+					cluster = ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, localCluster.HealthCheck)
+				}
 				routedCluster := WeightedClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), localZoneWeight)
 
 				sendClusters = append(sendClusters, cluster)
@@ -147,14 +152,19 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				// now the others
 				for c := range _route.Clusters {
 					_cluster := _route.Clusters[c]
-					logrus.Debugf("Adding cluster to the cluster set: %s, canary %t, %s", _cluster.Name, _cluster.IsCanary, LocalZone)
-					if _cluster.IsCanary && lowestPriorityCanary != _cluster.Priority {
+					logrus.Debugf("Adding cluster to the cluster set: %s, canary %t, %s", _cluster.Name, _cluster.IsCanary, _cluster.EndpointConfig.Locality.Zone)
+					if _cluster.IsCanary && _cluster != localClusterCanary {
 						logrus.Debugf(".. Skipping!")
 						continue // skip canaries of other zones
 					}
-					if !_cluster.IsCanary && lowestPriority == _cluster.Priority {
+					if !_cluster.IsCanary && _cluster == localCluster {
 						logrus.Debugf("... Skipping too!")
 						continue // skip local zones
+					}
+
+					if !_cluster.HasEndpoints() {
+						logrus.Debugf("... skipping due to no endpoints")
+						continue
 					}
 
 					weight := otherZoneWeight

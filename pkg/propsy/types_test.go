@@ -27,11 +27,11 @@ func TestNodeConfig(T *testing.T) {
 		log.Fatalf("There is a wrong number of endpoints!")
 	}
 
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "testbar", Weight: 10})
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "testbar", Weight: 10, Priority: 3, EndpointConfig: &EndpointConfig{Locality: &Locality{Zone: "ko"}}})
 
 	LocalZone = "test"
-	if totalWeight, _, _, _, _, _, _, _ := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").CalculateWeights(); totalWeight != 105 {
-		log.Fatalf("Error total weight: expected 16, got %d!", totalWeight)
+	if totalWeight, _, _, _, _, _ := node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").CalculateWeights(); totalWeight != 10 {
+		log.Fatalf("Error total weight: expected 10, got %d!", totalWeight)
 	}
 
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").RemoveCluster("foobar")
@@ -57,7 +57,7 @@ func TestNodeConfig(T *testing.T) {
 	node.FindListener("foobar").VirtualHosts = append(node.FindListener("foobar").VirtualHosts,
 		&VirtualHost{Name: "foobar"})
 	node.FindListener("foobar").FindVHost("foobar").AddRoute(&RouteConfig{Name: "foobar"})
-	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "foobar", Weight: 5, ConnectTimeout: 1, EndpointConfig: &EndpointConfig{
+	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddCluster(&ClusterConfig{Name: "foobar", Weight: 5, Priority: 4, ConnectTimeout: 1, EndpointConfig: &EndpointConfig{
 		Name:        "test",
 		ServicePort: 123,
 		Endpoints:   []*Endpoint{},
@@ -143,6 +143,7 @@ func generateSampleNode() NodeConfig {
 			Name:        "test",
 			ServicePort: 123,
 			Endpoints:   []*Endpoint{},
+			Locality:    &Locality{Zone: "test"},
 		}})
 	node.FindListener("foobar").FindVHost("foobar").FindRoute("foobar").AddClusters([]*ClusterConfig{
 		{
@@ -161,6 +162,7 @@ func generateSampleNode() NodeConfig {
 						Host:    "4.5.6.7",
 					},
 				},
+				Locality: &Locality{Zone: "test"},
 			},
 		},
 		{
@@ -168,9 +170,11 @@ func generateSampleNode() NodeConfig {
 			IsCanary:       false,
 			Name:           "test-notcanary",
 			ConnectTimeout: 2000,
+			Priority:       1,
 			EndpointConfig: &EndpointConfig{
 				Name:        "test-notcanary",
 				ServicePort: 9999,
+				Locality:    &Locality{Zone: "test"},
 			},
 		},
 	})

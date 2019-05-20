@@ -5,8 +5,8 @@ import (
 )
 
 type HealthServer struct {
-	listen string
-	isReady bool
+	listen    string
+	isReady   bool
 	isHealthy bool
 }
 

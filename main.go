@@ -21,6 +21,7 @@ import (
 
 type EndpointCluster struct {
 	KubeconfigPath string // empty for in-cluster
+	Zone           string
 	Priority       int
 }
 
@@ -44,11 +45,11 @@ func (i ConfigClusters) String() string {
 
 func (i EndpointClusters) Set(flag string) error {
 	parts := strings.Split(flag, ":")
-	if len(parts) < 2 || len(parts) > 2 {
+	if len(parts) < 3 || len(parts) > 3 {
 		return errors.New("not enough or too many parts in connected clusters")
 	}
 
-	priority, err := strconv.ParseInt(parts[1], 10, 32)
+	priority, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
 		return errors.New(fmt.Sprintf("wrong priority: %s", err.Error()))
 	}
@@ -58,7 +59,7 @@ func (i EndpointClusters) Set(flag string) error {
 		}
 	}
 
-	endpointClusters = append(endpointClusters, EndpointCluster{parts[0], int(priority)})
+	endpointClusters = append(endpointClusters, EndpointCluster{parts[0], parts[1], int(priority)})
 
 	return nil
 }
@@ -140,7 +141,7 @@ func main() {
 
 		//localities[endpointClusters[i].Zone] = &locality
 
-		ec, _ := controller.NewEndpointController(kubeClient, endpointClusters[i].Priority, cache)
+		ec, _ := controller.NewEndpointController(kubeClient, endpointClusters[i].Priority, endpointClusters[i].Zone, cache)
 		ec.WaitForInitialSync(nil)
 		ecs = append(ecs, ec)
 	}
@@ -174,7 +175,7 @@ func main() {
 
 	// there's no easy way to discover that the initial sync has happened
 	// so let's wait for 3 seconds of no changes before we flip the readiness flag
-	for time.Now().Sub(cache.LatestPPSAdded) < time.Second * 3 {
+	for time.Now().Sub(cache.LatestPPSAdded) < time.Second*3 {
 		time.Sleep(time.Second)
 		logrus.Debug("waiting for initial PPS to be added")
 	}

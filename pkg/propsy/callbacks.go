@@ -10,13 +10,13 @@ import (
 )
 
 type EnvoyCertificateValidator struct {
-	VerifyCN bool
-	streamContexts map[int64] context.Context
+	VerifyCN       bool
+	streamContexts map[int64]context.Context
 }
 
 func (P *EnvoyCertificateValidator) Add(ctx context.Context, streamid int64) {
 	if P.streamContexts == nil {
-		P.streamContexts = map[int64] context.Context{}
+		P.streamContexts = map[int64]context.Context{}
 	}
 	P.streamContexts[streamid] = ctx
 }
@@ -85,6 +85,6 @@ func (P PropsyCallbacks) OnFetchRequest(ctx context.Context, dr *api.DiscoveryRe
 	return P.cache.VerifyCtx(ctx, dr)
 }
 
-func (PropsyCallbacks) OnFetchResponse (*api.DiscoveryRequest, *api.DiscoveryResponse) {
+func (PropsyCallbacks) OnFetchResponse(*api.DiscoveryRequest, *api.DiscoveryResponse) {
 	logrus.Debug("OnFetchResponse")
 }

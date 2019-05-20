@@ -171,7 +171,7 @@ func (C *ProPsyController) ExtractHealthCheck(pps *propsyv1.ProPsyService) *prop
 	}
 }
 
-func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int, isCanary bool) *propsy.ClusterConfig {
+func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, zone string, priority int, isCanary bool) *propsy.ClusterConfig {
 	var endpointName string
 	var percent int
 	if isCanary {
@@ -186,6 +186,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int,
 		Name:        endpointName,
 		ServicePort: pps.Spec.ServicePort,
 		Endpoints:   nil,
+		Locality:    &propsy.Locality{Zone: zone},
 	}
 
 	hcConfig := C.ExtractHealthCheck(pps)
@@ -206,8 +207,8 @@ func (C *ProPsyController) NewRouteConfig(pps *propsyv1.ProPsyService) *propsy.R
 	var clusterConfigs []*propsy.ClusterConfig
 
 	for i := range C.endpointControllers {
-		clusterConfig := C.NewCluster(pps, C.endpointControllers[i].Priority, false)
-		clusterConfigCanary := C.NewCluster(pps, C.endpointControllers[i].Priority, true)
+		clusterConfig := C.NewCluster(pps, C.endpointControllers[i].Zone, C.endpointControllers[i].Priority, false)
+		clusterConfigCanary := C.NewCluster(pps, C.endpointControllers[i].Zone, C.endpointControllers[i].Priority, true)
 
 		clusterConfigs = append(clusterConfigs, clusterConfig)
 		if pps.Spec.CanaryService != "" {
