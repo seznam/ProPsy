@@ -137,7 +137,7 @@ func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoad
 	// find the lowest priority
 	lowestPriority := math.MaxInt32
 	for c := range R.Clusters {
-		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary && R.Clusters[c].EndpointConfig.Endpoints != nil {
 			lowestPriority = R.Clusters[c].Priority
 		}
 	}

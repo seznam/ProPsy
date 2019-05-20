@@ -185,7 +185,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, priority int,
 	endpointConfig := propsy.EndpointConfig{
 		Name:        endpointName,
 		ServicePort: pps.Spec.ServicePort,
-		Endpoints:   []*propsy.Endpoint{},
+		Endpoints:   nil,
 	}
 
 	hcConfig := C.ExtractHealthCheck(pps)

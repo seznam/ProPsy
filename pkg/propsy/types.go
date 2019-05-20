@@ -271,7 +271,7 @@ func (R *RouteConfig) Free() {
 func (R *RouteConfig) GetLowestPriorityCluster() *ClusterConfig {
 	lowestPriority := math.MaxInt32
 	for c := range R.Clusters {
-		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary && R.Clusters[c].EndpointConfig.Endpoints != nil {
 			lowestPriority = R.Clusters[c].Priority
 		}
 	}
@@ -293,9 +293,9 @@ func (R *RouteConfig) CalculateWeights() (
 	// find the total sum of weights that are not our cluster and our clusters as well
 	lowestPriority, lowestPriorityCanary = math.MaxInt32, math.MaxInt32
 	for c := range R.Clusters {
-		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary {
+		if R.Clusters[c].Priority < lowestPriority && !R.Clusters[c].IsCanary && R.Clusters[c].EndpointConfig != nil && R.Clusters[c].EndpointConfig.Endpoints != nil {
 			lowestPriority = R.Clusters[c].Priority
-		} else if R.Clusters[c].Priority < lowestPriorityCanary && R.Clusters[c].IsCanary {
+		} else if R.Clusters[c].Priority < lowestPriorityCanary && R.Clusters[c].IsCanary && R.Clusters[c].EndpointConfig.Endpoints != nil {
 			lowestPriorityCanary = R.Clusters[c].Priority
 		}
 	}
@@ -401,7 +401,7 @@ func (C *ClusterConfig) Free() {
 		C.EndpointConfig.Endpoints[i] = nil
 	}
 
-	C.EndpointConfig.Endpoints = []*Endpoint{}
+	C.EndpointConfig.Endpoints = nil
 }
 
 func GenerateUniqueEndpointName(priority int, namespace, name string) string {
@@ -413,11 +413,14 @@ func GenerateUniqConfigName(namespace, name string) string {
 }
 
 func (E *EndpointConfig) Clear() {
-	E.Endpoints = []*Endpoint{}
+	E.Endpoints = nil
 }
 
 func (E *EndpointConfig) AddEndpoint(host string, weight int, healthy bool) {
 	E.RemoveEndpoint(host) // force remove if it exists to avoid duplicating
+	if E.Endpoints == nil {
+		E.Endpoints = []*Endpoint{}
+	}
 	E.Endpoints = append(E.Endpoints, &Endpoint{Host: host, Weight: weight, Healthy: healthy})
 }
 

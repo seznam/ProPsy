@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"reflect"
 	"time"
@@ -79,6 +80,8 @@ func (C *EndpointController) EndpointAdded(endpoint *v1.Endpoints) {
 		return
 	}
 
+	ecs.Endpoints = []*propsy.Endpoint{} // init so we know it exists
+
 	// it seems to be a tracked service. Feed in all the endpoints...
 	for i := 0; i < len(endpoint.Subsets); i++ {
 		for j := 0; j < len(endpoint.Subsets[i].Addresses); j++ {
@@ -100,7 +103,7 @@ func (C *EndpointController) EndpointRemoved(endpoint *v1.Endpoints) {
 	if ecs == nil {
 		return
 	}
-	ecs.Endpoints = []*propsy.Endpoint{}
+	ecs.Endpoints = nil
 
 	for i := range nodes {
 		nodes[i].Update()
@@ -133,6 +136,16 @@ func (C *EndpointController) ResyncEndpoints(namespace, service, canary string) 
 	endpoints, err := C.endpointGetter.Endpoints(namespace).Get(service, v12.GetOptions{})
 	if err == nil {
 		C.EndpointAdded(endpoints)
+	} else {
+		if errors.IsNotFound(err) {
+			name := propsy.GenerateUniqueEndpointName(C.Priority, namespace, service)
+			ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
+			ecs.Endpoints = nil
+			for i := range nodes {
+				nodes[i].Update()
+			}
+		}
+		logrus.Debugf("no such endpoint, err: %s", err.Error())
 	}
 
 	if canary != "" {

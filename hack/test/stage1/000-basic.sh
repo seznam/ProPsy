@@ -23,12 +23,12 @@ test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_c
 kubectl apply -f hack/test/stage1/000-service-updated.yaml
 sleep 1 # sometimes takes a second to process and re-fetch endpoints
 call_grpc envoy.api.v2.ClusterDiscoveryService/FetchClusters
-test_value "EDS Cluster Names" resources[].edsClusterConfig.serviceName 0-6448_0_-*1-default-testt
-test_value "Timeout" resources[0].connectTimeout "6s"
+test_value "EDS Cluster Names" resources[].edsClusterConfig.serviceName 0-6448_0_-*1-default-kubernetess
+test_value "Timeout" resources[1].connectTimeout "6s"
 
 call_grpc envoy.api.v2.ListenerDiscoveryService/FetchListeners
 test_value "Listen port" resources[0].address.socketAddress.portValue 6448
-test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_config.virtual_hosts[0].routes[0].route.weighted_clusters.total_weight 60
+test_value "Total weight" resources[0].filterChains[0].filters[0].config.route_config.virtual_hosts[0].routes[0].route.weighted_clusters.total_weight 100
 
 # test rollback to the original values to check service re-registration
 kubectl apply -f hack/test/stage1/000-service.yaml
