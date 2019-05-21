@@ -7,14 +7,19 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"sync"
 )
 
 type EnvoyCertificateValidator struct {
 	VerifyCN       bool
 	streamContexts map[int64]context.Context
+	mu             sync.Mutex
 }
 
 func (P *EnvoyCertificateValidator) Add(ctx context.Context, streamid int64) {
+	P.mu.Lock()
+	defer P.mu.Unlock()
+
 	if P.streamContexts == nil {
 		P.streamContexts = map[int64]context.Context{}
 	}
@@ -25,6 +30,9 @@ func (P *EnvoyCertificateValidator) VerifyStream(streamid int64, dr *api.Discove
 	if !P.VerifyCN {
 		return nil
 	}
+
+	P.mu.Lock()
+	defer P.mu.Unlock()
 
 	if ctx, ok := P.streamContexts[streamid]; !ok {
 		logrus.Warn("there was no context to this streamid")

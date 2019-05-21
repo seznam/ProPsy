@@ -310,7 +310,7 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 		logrus.Infof("Dispatching update to %s", nodes[node].NodeName)
 		nodes[node].Update()
 	}
-	logrus.Infof("cache content: %+v", C.ppsCache)
+	logrus.Debugf("cache content: %+v", C.ppsCache)
 	C.ppsCache.DumpNodes()
 
 	C.ppsCache.LatestPPSAdded = time.Now() // force the time now to be the latest
