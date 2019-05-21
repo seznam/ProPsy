@@ -48,7 +48,7 @@ func Test_NewListenerConfig(t *testing.T) {
 
 	properListener := propsy.ListenerConfig{
 		TLSSecret:       nil,
-		TrackedLocality: "ko",
+		TrackedLocality: []string{"ko"},
 		Type:            propsy.HTTP,
 		Name:            "127.0.0.1-1234_0",
 		Listen:          "127.0.0.1:1234",

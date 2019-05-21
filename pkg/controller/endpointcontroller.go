@@ -118,7 +118,7 @@ func (C *EndpointController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoint
 	}
 
 	name := propsy.GenerateUniqueEndpointName(C.Priority, old.Namespace, old.Name)
-	ecs, nodes := C.ppsCache.GetEndpointSetByEndpoint(name)
+	ecs, _ := C.ppsCache.GetEndpointSetByEndpoint(name)
 	if ecs == nil {
 		return
 	}
@@ -129,8 +129,13 @@ func (C *EndpointController) EndpointChanged(old *v1.Endpoints, new *v1.Endpoint
 	ecs.Endpoints = []*propsy.Endpoint{} // clear the existing from this locality. do NOT update tracked nodes until we feed the new ones in!!
 	C.EndpointAdded(new)                 // feed in new ones
 
-	for j := range nodes {
-		nodes[j].Update()
+	logrus.Debugf("New endpoint count for %s: %d", new.Name, len(new.Subsets[0].Addresses))
+	for i := range new.Subsets[0].Addresses {
+		logrus.Debugf("endpoint: %s", new.Subsets[0].Addresses[i].IP)
+	}
+
+	for i := range ecs.Endpoints {
+		logrus.Debugf("ecs endpoint: %s %t", ecs.Endpoints[i].Host, ecs.Endpoints[i].Healthy)
 	}
 }
 

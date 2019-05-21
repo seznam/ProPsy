@@ -44,6 +44,6 @@ test_value "EDS discovered addresses" resources[].endpoints[].lbEndpoints[]?.end
 
 kubectl apply -f hack/test/stage1/000-endpoints-updated.yaml
 call_grpc envoy.api.v2.EndpointDiscoveryService/FetchEndpoints
-test_value "EDS discovered port" resources[].endpoints[].lbEndpoints[]?.endpoint.address.socketAddress.portValue 9999*9999*9999*9999
+test_value "EDS discovered port" resources[].endpoints[].lbEndpoints[]?.endpoint.address.socketAddress.portValue 6443*6443*6443*6443
 test_value "EDS discovered addresses" resources[].endpoints[].lbEndpoints[]?.endpoint.address.socketAddress.address 10.10.20.30*10.40.50.60*10.70.80.90*192.168.10.20
 exit 0

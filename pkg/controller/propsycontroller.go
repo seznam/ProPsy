@@ -67,14 +67,14 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 	propsyInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				logrus.Infof("Add propsy: %+v", obj)
+				logrus.Infof("Add propsy: %+v @ %s", obj, propsy.locality.Zone)
 				propsy.PPSAdded(obj.(*propsyv1.ProPsyService))
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				propsy.PPSChanged(oldObj.(*propsyv1.ProPsyService), newObj.(*propsyv1.ProPsyService))
 			},
 			DeleteFunc: func(obj interface{}) {
-				propsy.PPSRemoved(obj.(*propsyv1.ProPsyService))
+				propsy.PPSRemoved(obj.(*propsyv1.ProPsyService), false)
 			},
 		},
 	)
@@ -267,7 +267,7 @@ func (C *ProPsyController) NewListenerConfig(pps *propsyv1.ProPsyService) *props
 			Routes:  []*propsy.RouteConfig{C.NewRouteConfig(pps)},
 		}},
 		Type:            propsyType,
-		TrackedLocality: C.locality.Zone,
+		TrackedLocality: []string{C.locality.Zone},
 		TLSSecret:       tlsData,
 	}
 }
@@ -294,7 +294,11 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 	}
 
 	for i := range listenerConfig.VirtualHosts[0].Routes[0].Clusters {
-		C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[i].EndpointConfig, nodes)
+		if endpoint, _ := C.ppsCache.GetEndpointSetByEndpoint(listenerConfig.VirtualHosts[0].Routes[0].Clusters[i].EndpointConfig.Name); endpoint == nil {
+			C.ppsCache.RegisterEndpointSet(listenerConfig.VirtualHosts[0].Routes[0].Clusters[i].EndpointConfig, nodes)
+		} else {
+			listenerConfig.VirtualHosts[0].Routes[0].Clusters[i].EndpointConfig = endpoint
+		}
 	}
 
 	for node := range nodes {
@@ -316,7 +320,7 @@ func (C *ProPsyController) PPSAdded(pps *propsyv1.ProPsyService) {
 	C.ppsCache.LatestPPSAdded = time.Now() // force the time now to be the latest
 }
 
-func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
+func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService, isUpdate bool) {
 	propsyType := GetProxyType(pps.Spec.Type)
 	domains := []string{"*"}
 	vhostName := propsy.GenerateVHostName(domains)
@@ -327,6 +331,10 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
 		lis := node.FindListener(listenerName)
 		if lis != nil {
+			if lis.GetPriorityTracker() != "" && lis.GetPriorityTracker() != C.locality.Zone {
+				continue
+			}
+
 			for ec := range C.endpointControllers {
 				if pps.Spec.CanaryService != "" {
 					lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.endpointControllers[ec].Priority, pps.Namespace, pps.Spec.CanaryService), C.locality.Zone)
@@ -338,10 +346,13 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService) {
 					lis.Free()
 					node.RemoveListener(lis.Name)
 				}
-				if len(node.Listeners) > 0 {
-					node.Update()
-				} else {
-					propsy.RemoveFromEnvoy(node)
+
+				if !isUpdate {
+					if len(node.Listeners) > 0 {
+						node.Update()
+					} else {
+						propsy.RemoveFromEnvoy(node)
+					}
 				}
 			}
 		}
@@ -353,7 +364,7 @@ func (C *ProPsyController) PPSChanged(old *propsyv1.ProPsyService, new *propsyv1
 		return
 	}
 
-	C.PPSRemoved(old)
+	C.PPSRemoved(old, true)
 	C.PPSAdded(new)
 
 	for i := range new.Spec.Nodes {

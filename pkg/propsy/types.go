@@ -46,8 +46,10 @@ type ListenerConfig struct {
 	Listen          string
 	VirtualHosts    []*VirtualHost
 	Type            ProxyType
-	TrackedLocality string
+	TrackedLocality []string
 	TLSSecret       *TlsData
+
+	mu sync.Mutex
 }
 
 func (L *ListenerConfig) String() string {
@@ -137,7 +139,7 @@ func (N *NodeConfig) AddListener(l *ListenerConfig) {
 	if N.FindListener(l.Name) != nil {
 		listener := N.FindListener(l.Name)
 		// force local zone to become master locality for this listener if possible
-		if listener.TrackedLocality != LocalZone && l.TrackedLocality == LocalZone {
+		if !listener.IsTrackedBy(LocalZone) && l.IsTrackedBy(LocalZone) {
 			// remove the old one
 			N.RemoveListener(listener.Name)
 			// force a local one to be added
@@ -149,6 +151,9 @@ func (N *NodeConfig) AddListener(l *ListenerConfig) {
 		}
 
 		listener.AddVHosts(l.VirtualHosts)
+		for i := range l.TrackedLocality {
+			listener.AddTracker(l.TrackedLocality[i])
+		} // copy over listeners
 	} else {
 		N.Listeners = append(N.Listeners, l)
 	}
@@ -372,18 +377,65 @@ func (L *ListenerConfig) AddVHost(host *VirtualHost) {
 	}
 }
 
+func (L *ListenerConfig) IsTrackedBy(zone string) bool {
+	L.mu.Lock()
+	defer L.mu.Unlock()
+
+	for i := range L.TrackedLocality {
+		if L.TrackedLocality[i] == zone {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (L *ListenerConfig) RemoveTracker(zone string) {
+	L.mu.Lock()
+	defer L.mu.Unlock()
+
+	for i := range L.TrackedLocality {
+		if L.TrackedLocality[i] == zone {
+			L.TrackedLocality[i] = L.TrackedLocality[len(L.TrackedLocality)-1]  // move the last item here
+			L.TrackedLocality = L.TrackedLocality[0 : len(L.TrackedLocality)-1] // drop the last item from the list
+			break
+		}
+	}
+}
+
+func (L *ListenerConfig) AddTracker(zone string) {
+	L.mu.Lock()
+	defer L.mu.Unlock()
+
+	for i := range L.TrackedLocality {
+		if L.TrackedLocality[i] == zone {
+			break
+		}
+	}
+
+	L.TrackedLocality = append(L.TrackedLocality, zone)
+}
+
+func (L *ListenerConfig) GetPriorityTracker() string {
+	if L.IsTrackedBy(LocalZone) {
+		return LocalZone
+	}
+
+	return ""
+}
+
 func (L *ListenerConfig) SafeRemove(vhost, route, clusterName, zone string) {
+	L.RemoveTracker(zone)
+
 	if L.FindVHost(vhost) == nil {
 		return
 	}
+
 	L.FindVHost(vhost).SafeRemoveRoute(route, clusterName)
 	if len(L.FindVHost(vhost).Routes) == 0 {
 		L.RemoveVHost(vhost)
 	}
 
-	if L.TrackedLocality == zone {
-		L.TrackedLocality = "" // reset tracked locality to allow further replacement
-	}
 }
 
 func (C *ClusterConfig) Free() {

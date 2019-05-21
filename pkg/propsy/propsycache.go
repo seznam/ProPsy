@@ -43,6 +43,7 @@ func NewProPsyCache() *ProPsyCache {
 		endpointNodes:         map[string][]*NodeConfig{},
 		tlsNodes:              map[string][]*NodeConfig{},
 		tlsSecrets:            map[string]*TlsData{},
+		LatestPPSAdded:        time.Now(),
 	}
 
 	return &cache
@@ -94,7 +95,11 @@ func (P *ProPsyCache) RegisterEndpointSet(cfg *EndpointConfig, nodes []*NodeConf
 	} else {
 		P.endpointNodes[cfg.Name] = nodes
 	}
-	P.endpointConfigsByName[cfg.Name] = cfg
+	if _, ok := P.endpointConfigsByName[cfg.Name]; !ok {
+		P.endpointConfigsByName[cfg.Name] = cfg
+	} else {
+		logrus.Warnf("double registration of endpoint set %s", cfg.Name)
+	}
 }
 
 func (P *ProPsyCache) AddTLSWatch(secretNamespace, secretName string, node *NodeConfig) {
