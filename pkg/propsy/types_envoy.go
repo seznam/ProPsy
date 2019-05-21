@@ -259,7 +259,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 	var FilterType string
 	var err error
 
-	logrus.Info("Generating listener for type: " + string(L.Type))
+	logrus.Debugf("Generating listener for type: %s", string(L.Type))
 
 	switch L.Type {
 	case HTTP:

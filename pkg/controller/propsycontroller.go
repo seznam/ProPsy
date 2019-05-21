@@ -16,7 +16,6 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	listerv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"log"
 	"reflect"
 	"time"
 )
@@ -68,7 +67,7 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 	propsyInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				log.Printf("Add propsy: %+v", obj)
+				logrus.Infof("Add propsy: %+v", obj)
 				propsy.PPSAdded(obj.(*propsyv1.ProPsyService))
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
@@ -102,11 +101,11 @@ func NewProPsyController(endpointClient kubernetes.Interface, crdClient propsycl
 
 func (C *ProPsyController) WaitForInitialSync(stop <-chan struct{}) {
 	if !cache.WaitForCacheSync(stop, C.ppsListerSynced) {
-		log.Fatal("Error waiting to sync initial cache")
+		logrus.Fatal("Error waiting to sync initial cache")
 		return
 	}
 
-	log.Print("Finished syncing initial cache")
+	logrus.Info("Finished syncing initial cache")
 }
 
 func (C *ProPsyController) SecretAdded(secret *v1.Secret) {

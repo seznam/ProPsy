@@ -199,9 +199,9 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 		sendListeners = append(sendListeners, addListener)
 	}
 
-	logrus.Infof("Generated listeners: %+v", sendListeners)
-	logrus.Infof("Generated endpoints: %+v", sendEndpoints)
-	logrus.Infof("Generated clusters: %+v", sendClusters)
+	logrus.Debugf("Generated listeners: %+v", sendListeners)
+	logrus.Debugf("Generated endpoints: %+v", sendEndpoints)
+	logrus.Debugf("Generated clusters: %+v", sendClusters)
 	logrus.Infof("Setting config for %s", n.NodeName)
 	snapshot := cache.NewSnapshot(time.Now().String(), sendEndpoints, sendClusters, nil, sendListeners)
 	_ = snapshotCache.SetSnapshot(n.NodeName, snapshot)
