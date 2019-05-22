@@ -331,10 +331,15 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService, isUpdate bool
 		node := C.ppsCache.GetOrCreateNode(pps.Spec.Nodes[i])
 		lis := node.FindListener(listenerName)
 		if lis != nil {
-			if lis.GetPriorityTracker() != "" && lis.GetPriorityTracker() != C.locality.Zone {
+
+			if !lis.CanBeRemovedBy(C.locality.Zone) {
+				lis.RemoveTracker(C.locality.Zone)
 				continue
 			}
 
+			lis.RemoveTracker(C.locality.Zone)
+
+			// clear all endpoint controller tracking
 			for ec := range C.endpointControllers {
 				if pps.Spec.CanaryService != "" {
 					lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.endpointControllers[ec].Priority, pps.Namespace, pps.Spec.CanaryService), C.locality.Zone)
@@ -342,17 +347,22 @@ func (C *ProPsyController) PPSRemoved(pps *propsyv1.ProPsyService, isUpdate bool
 				lis.SafeRemove(vhostName, routeName, propsy.GenerateUniqueEndpointName(C.endpointControllers[ec].Priority, pps.Namespace, pps.Spec.Service), C.locality.Zone)
 
 				logrus.Debugf("Remaining vhosts: %d", len(lis.VirtualHosts))
-				if len(lis.VirtualHosts) == 0 {
-					lis.Free()
-					node.RemoveListener(lis.Name)
-				}
+			}
 
-				if !isUpdate {
-					if len(node.Listeners) > 0 {
-						node.Update()
-					} else {
-						propsy.RemoveFromEnvoy(node)
-					}
+			lis.SafeRemove(vhostName, routeName, "", C.locality.Zone) // try to clear up the listener
+
+			// remove listeners if there are no vhosts left
+			if len(lis.VirtualHosts) == 0 {
+				lis.Free()
+				node.RemoveListener(lis.Name)
+			}
+
+			// update node if we are actually deleting and not just updating, otherwise the PPSAdded will take care of it
+			if !isUpdate {
+				if len(node.Listeners) > 0 {
+					node.Update()
+				} else {
+					propsy.RemoveFromEnvoy(node)
 				}
 			}
 		}

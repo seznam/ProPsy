@@ -44,6 +44,8 @@ func NewProPsyCache() *ProPsyCache {
 		tlsNodes:              map[string][]*NodeConfig{},
 		tlsSecrets:            map[string]*TlsData{},
 		LatestPPSAdded:        time.Now(),
+
+		mu: sync.Mutex{},
 	}
 
 	return &cache
@@ -225,4 +227,8 @@ func (P *ProPsyCache) DumpNodes() {
 	for i := range P.nodeConfigs {
 		logrus.Infof("Node in pps cache: %p, %s", &P.nodeConfigs, P.nodeConfigs[i].NodeName)
 	}
+}
+
+func (P *ProPsyCache) GetNodes() map[string]*NodeConfig {
+	return P.nodeConfigs
 }

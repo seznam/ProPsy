@@ -47,18 +47,14 @@ teste2e:
   - git clone https://github.com/envoyproxy/data-plane-api.git proto/data-plane-api
   - cp -rp proto/extras/* proto/data-plane-api/
   - mkdir -p /tmp/log/
-  - nohup /www/adm/etcd/bin/etcd --data-dir /tmp/etcd --name etcd-test >/tmp/log/etcd.log 2>&1 &
-  - nohup /www/adm/kubernetes/bin/hyperkube apiserver --etcd-servers=http://localhost:2379 >/tmp/log/apiserver.log 2>&1 &
+  - ./hack/test/up/etcd.sh
+  - ./hack/test/up/apiserver.sh test 8080
   - /bin/sh -c 'while [ true ]; do curl http://localhost:8080 >/dev/null 2>&1 && exit 0; echo "Not ready yet ... " ; sleep 3 ; done'
   - /bin/sh -c 'for i in deployment/kubernetes/*.yaml; do kubectl apply -f $i ; done'
   - nohup dist/propsy -zone test -configcluster hack/test/kubeconfig.test.yaml:test -endpointcluster hack/test/kubeconfig.test.yaml:test:1 &
   script:
   - /bin/sh -c 'for i in hack/test/stage1/*.sh; do echo ">>>>>> Running test $i" ; ./$i ; done'
   after_script:
-  - echo "Apiserver log --------"
-  - cat /tmp/log/apiserver.log
-  - echo "ETCD log -------"
-  - cat /tmp/log/etcd.log
   - /bin/sh -c 'killall -9 propsy hyperkube etcd || :'
 
 dockerize:

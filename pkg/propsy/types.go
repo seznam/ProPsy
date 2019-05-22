@@ -229,7 +229,10 @@ func (V *VirtualHost) SafeRemoveRoute(route string, clusterName string) {
 		return
 	}
 
-	R.RemoveCluster(clusterName)
+	if clusterName != "" {
+		R.RemoveCluster(clusterName)
+	}
+
 	if len(R.Clusters) == 0 {
 		V.RemoveRoute(route)
 	}
@@ -271,6 +274,8 @@ func (R *RouteConfig) Free() {
 		R.Clusters[i].Free()
 		R.Clusters[i] = nil
 	}
+
+	R.Clusters = []*ClusterConfig{}
 }
 
 func (R *RouteConfig) GetLocalBestCluster(canary bool) *ClusterConfig {
@@ -422,6 +427,18 @@ func (L *ListenerConfig) GetPriorityTracker() string {
 	}
 
 	return ""
+}
+
+func (L *ListenerConfig) GetTrackerCount() int {
+	return len(L.TrackedLocality)
+}
+
+func (L *ListenerConfig) CanBeRemovedBy(zone string) bool {
+	// NOT vvv
+	// 1. there's a priority tracker we're not the owner => no touchy
+	// or
+	// 2. there's another priority tracker => no touchy
+	return !(L.GetPriorityTracker() != "" && L.GetPriorityTracker() != zone)
 }
 
 func (L *ListenerConfig) SafeRemove(vhost, route, clusterName, zone string) {

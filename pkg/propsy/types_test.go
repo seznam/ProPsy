@@ -3,6 +3,7 @@ package propsy
 import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	"github.com/seznam/ProPsy/pkg/testutils"
 	"log"
 	"reflect"
 	"testing"
@@ -187,27 +188,11 @@ func TestUnique(T *testing.T) {
 	}
 }
 
-func failAinsteadofB(item string, A, B interface{}) {
-	log.Fatalf("Wrong %s, got %+v instead of %+v", item, A, B)
-}
-
-func assertString(a, b string) {
-	if a != b {
-		failAinsteadofB("string", a, b)
-	}
-}
-
-func assertInt64(a, b int64) {
-	if a != b {
-		failAinsteadofB("int", a, b)
-	}
-}
-
 func testListenerPrivate(listen, host string, port int64) {
 	listener := ListenerConfig{Listen: listen}
 	a, b := listener.GenerateListenParts()
-	assertString(a, host)
-	assertInt64(b, port)
+	testutils.AssertString(a, host)
+	testutils.AssertInt64(b, port)
 }
 
 func TestListeners(T *testing.T) {
@@ -218,12 +203,12 @@ func TestListeners(T *testing.T) {
 
 func TestRouteGenerator(T *testing.T) {
 	test, path := GenerateRouteName("foobar/baz")
-	assertString(test, "_foobar_baz")
-	assertString(path, "/foobar/baz")
+	testutils.AssertString(test, "_foobar_baz")
+	testutils.AssertString(path, "/foobar/baz")
 	test, path = GenerateRouteName("")
-	assertString(test, "_")
-	assertString(path, "/")
+	testutils.AssertString(test, "_")
+	testutils.AssertString(path, "/")
 	test, path = GenerateRouteName("/foo")
-	assertString(test, "_foo")
-	assertString(path, "/foo")
+	testutils.AssertString(test, "_foo")
+	testutils.AssertString(path, "/foo")
 }
