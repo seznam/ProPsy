@@ -414,7 +414,7 @@ func (L *ListenerConfig) AddTracker(zone string) {
 
 	for i := range L.TrackedLocality {
 		if L.TrackedLocality[i] == zone {
-			break
+			return
 		}
 	}
 

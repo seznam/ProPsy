@@ -212,3 +212,18 @@ func TestRouteGenerator(T *testing.T) {
 	testutils.AssertString(test, "_foo")
 	testutils.AssertString(path, "/foo")
 }
+
+func TestListenerConfig_Trackers(T *testing.T) {
+	lis := ListenerConfig{}
+	LocalZone = "left"
+	lis.AddTracker("left")
+	lis.AddTracker("right")
+
+	testutils.AssertString(lis.GetPriorityTracker(), "left")
+	lis.AddTracker("left")
+	testutils.AssertInt(lis.GetTrackerCount(), 2)
+	lis.RemoveTracker("left")
+	testutils.AssertInt(lis.GetTrackerCount(), 1)
+	// TODO this might change when we have proper lower-level priority tracking for PPS
+	testutils.AssertString(lis.GetPriorityTracker(), "")
+}
