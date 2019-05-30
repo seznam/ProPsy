@@ -87,6 +87,33 @@ spec:
               type: string
             healthCheckHTTPHost:
               type: string
+            healthCheckOutlierEnabled:
+              type: boolean
+            healthCheckOutlierConsecutiveErrors:
+              type: integer
+              minimum: 1
+            healthCheckOutlierConsecutiveGwErrors:
+              type: integer
+              minimum: 1
+            healthCheckOutlierInterval:
+              type: integer
+              minimum: 1
+            healthCheckOutlierEjectionTime:
+              type: integer
+              minimum: 1
+            healthCheckOutlierEjectionPercent:
+              type: integer
+              minimum: 1
+              maximum: 100
+            healthCheckOutlierMinimumHosts:
+              type: integer
+              minimum: 0
+            healthCheckOutlierMinimumRequests:
+              type: integer
+              minimum: 0
+            healthCheckOutlierFailures:
+              type: integer
+              minimum: 0
   additionalPrinterColumns:
   - name: Service
     type: string

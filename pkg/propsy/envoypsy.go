@@ -109,6 +109,13 @@ func UInt64FromInteger(val int) *types.UInt64Value {
 	}
 }
 
+func DurationToDuration(duration time.Duration) *types.Duration {
+	return &types.Duration{
+		Seconds: int64(duration / time.Second),
+		Nanos:   int32(duration % time.Second),
+	}
+}
+
 func GenerateEnvoyConfig(n *NodeConfig) {
 	//sendRoutes := []cache.Resource{}
 	var sendEndpoints []cache.Resource
@@ -138,10 +145,10 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 				endpointsAll := _route.GeneratePrioritizedEndpoints(LocalZone)
 
 				addEndpoints := endpointsAll.ToEnvoy(_listener.Name + "_" + _route.GenerateUniqueRouteName())
-				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, nil)
+				cluster := ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, nil, nil)
 
 				if localCluster != nil {
-					cluster = ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, localCluster.HealthCheck)
+					cluster = ClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), connectTimeout, maxRequests, localCluster.HealthCheck, localCluster.Outlier)
 				}
 				routedCluster := WeightedClusterToEnvoy(_listener.Name+"_"+_route.GenerateUniqueRouteName(), localZoneWeight)
 
@@ -175,7 +182,7 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 					localityEndpoints := ClusterLoadAssignment{_cluster.EndpointConfig.ToEnvoy(0, 1)}
 
 					addEndpoints := localityEndpoints.ToEnvoy(_cluster.Name)
-					cluster := ClusterToEnvoy(_cluster.Name, _cluster.ConnectTimeout, _cluster.MaxRequests, localCluster.HealthCheck)
+					cluster := ClusterToEnvoy(_cluster.Name, _cluster.ConnectTimeout, _cluster.MaxRequests, localCluster.HealthCheck, localCluster.Outlier)
 
 					routedCluster := WeightedClusterToEnvoy(_cluster.Name, weight)
 

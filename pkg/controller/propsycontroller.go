@@ -143,7 +143,20 @@ func (C *ProPsyController) ResyncTLS(namespace, name string) {
 	}
 }
 
-func (C *ProPsyController) ExtractHealthCheck(pps *propsyv1.ProPsyService) *propsy.HealthCheckConfig {
+func (C *ProPsyController) ExtractHealthCheck(pps *propsyv1.ProPsyService) (healthcheck *propsy.HealthCheckConfig, outlier *propsy.OutlierConfig) {
+
+	if pps.Spec.HealthCheckOutlierEnabled {
+		outlier = &propsy.OutlierConfig{
+			Interval:            time.Duration(pps.Spec.HealthCheckOutlierInterval) * time.Millisecond,
+			ConsecutiveErrors:   pps.Spec.HealthCheckOutlierConsecutiveErrors,
+			EjectionPercent:     pps.Spec.HealthCheckOutlierEjectionPercent,
+			EjectionTime:        time.Duration(pps.Spec.HealthCheckOutlierEjectionTime) * time.Millisecond,
+			MinimumHosts:        pps.Spec.HealthCheckOutlierMinimumHosts,
+			MinimumRequests:     pps.Spec.HealthCheckOutlierMinimumRequests,
+			ConsecutiveGwErrors: pps.Spec.HealthCheckOutlierConsecutiveGwErrors,
+		}
+	}
+
 	var hcType propsy.HealthCheckType
 	switch pps.Spec.HealthCheckHealthChecker {
 	case "HTTP":
@@ -155,10 +168,10 @@ func (C *ProPsyController) ExtractHealthCheck(pps *propsyv1.ProPsyService) *prop
 	case "GRPC":
 		hcType = propsy.GRPCHealthCheck
 	default:
-		return nil
+		return nil, outlier
 	}
 
-	return &propsy.HealthCheckConfig{
+	healthcheck = &propsy.HealthCheckConfig{
 		HTTPHost:          pps.Spec.HealthCheckHTTPHost,
 		HTTPPath:          pps.Spec.HealthCheckHTTPPath,
 		ReuseConnection:   pps.Spec.HealthCheckReuseConnection,
@@ -168,6 +181,8 @@ func (C *ProPsyController) ExtractHealthCheck(pps *propsyv1.ProPsyService) *prop
 		Interval:          time.Duration(pps.Spec.HealthCheckInterval) * time.Millisecond,
 		HealthChecker:     hcType,
 	}
+
+	return healthcheck, outlier
 }
 
 func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, zone string, priority int, isCanary bool) *propsy.ClusterConfig {
@@ -188,7 +203,7 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, zone string, 
 		Locality:    &propsy.Locality{Zone: zone},
 	}
 
-	hcConfig := C.ExtractHealthCheck(pps)
+	healthcheck, outlier := C.ExtractHealthCheck(pps)
 
 	return &propsy.ClusterConfig{
 		ConnectTimeout: pps.Spec.ConnectTimeout,
@@ -198,7 +213,8 @@ func (C *ProPsyController) NewCluster(pps *propsyv1.ProPsyService, zone string, 
 		IsCanary:       isCanary,
 		MaxRequests:    pps.Spec.MaxRequestsPerConnection,
 		Priority:       priority,
-		HealthCheck:    hcConfig,
+		HealthCheck:    healthcheck,
+		Outlier:        outlier,
 	}
 }
 

@@ -41,6 +41,16 @@ type HealthCheckConfig struct {
 	HTTPHost          string
 }
 
+type OutlierConfig struct {
+	ConsecutiveErrors   int
+	ConsecutiveGwErrors int
+	Interval            time.Duration
+	EjectionTime        time.Duration
+	EjectionPercent     int
+	MinimumHosts        int
+	MinimumRequests     int
+}
+
 type ListenerConfig struct {
 	Name            string
 	Listen          string
@@ -90,6 +100,7 @@ type ClusterConfig struct {
 	MaxRequests    int
 	Priority       int
 	HealthCheck    *HealthCheckConfig
+	Outlier        *OutlierConfig
 }
 
 func (C *ClusterConfig) String() string {

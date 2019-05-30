@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
@@ -63,7 +64,7 @@ func (L *Locality) ToEnvoy() *core.Locality {
 }
 
 func (C *ClusterConfig) ToEnvoy() *v2.Cluster {
-	return ClusterToEnvoy(C.Name, C.ConnectTimeout, C.MaxRequests, C.HealthCheck)
+	return ClusterToEnvoy(C.Name, C.ConnectTimeout, C.MaxRequests, C.HealthCheck, C.Outlier)
 }
 
 func (V *VirtualHost) ToEnvoy(routes []route.Route) route.VirtualHost {
@@ -204,7 +205,23 @@ func (H *HealthCheckConfig) ToEnvoy() *core.HealthCheck {
 	return hc
 }
 
-func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int, healthCheck *HealthCheckConfig) *v2.Cluster {
+func (O *OutlierConfig) ToEnvoy() *cluster.OutlierDetection {
+	if O == nil {
+		return nil
+	}
+
+	return &cluster.OutlierDetection{
+		Interval:                  DurationToDuration(O.Interval),
+		BaseEjectionTime:          DurationToDuration(O.EjectionTime),
+		Consecutive_5Xx:           UInt32FromInteger(O.ConsecutiveErrors),
+		ConsecutiveGatewayFailure: UInt32FromInteger(O.ConsecutiveGwErrors),
+		MaxEjectionPercent:        UInt32FromInteger(O.EjectionPercent),
+		SuccessRateMinimumHosts:   UInt32FromInteger(O.MinimumHosts),
+		SuccessRateRequestVolume:  UInt32FromInteger(O.MinimumRequests),
+	}
+}
+
+func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int, healthCheck *HealthCheckConfig, outlier *OutlierConfig) *v2.Cluster {
 	maxRequestsPtr := UInt32FromInteger(maxRequests)
 	if maxRequests == 0 {
 		maxRequestsPtr = nil
@@ -248,6 +265,7 @@ func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int, healthCh
 		},
 		MaxRequestsPerConnection: maxRequestsPtr,
 		HealthChecks:             hcs,
+		OutlierDetection:         outlier.ToEnvoy(),
 	}
 }
 
