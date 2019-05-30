@@ -41,11 +41,11 @@ testsrc:
 teste2e:
   stage: test
   image: docker.dev.dszn.cz/debian:stretch
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
   before_script:
   - apt-get update
   - apt-get -y install --no-install-recommends --no-install-suggests adm-kubernetes-hyperkube adm-etcd adm-kubectl git jq
-  - git clone https://github.com/envoyproxy/data-plane-api.git proto/data-plane-api
-  - cp -rp proto/extras/* proto/data-plane-api/
   - mkdir -p /tmp/log/
   - ./hack/test/up/etcd.sh
   - ./hack/test/up/apiserver.sh test 8080

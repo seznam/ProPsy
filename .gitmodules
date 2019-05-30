@@ -1,0 +1,9 @@
+[submodule "hack/test/proto/googleapis"]
+	path = hack/test/proto/googleapis
+	url = https://github.com/googleapis/googleapis.git
+[submodule "hack/test/proto/data-plane-api"]
+	path = hack/test/proto/data-plane-api
+	url = https://github.com/envoyproxy/data-plane-api.git
+[submodule "hack/test/proto/protoc-gen-validate"]
+	path = hack/test/proto/protoc-gen-validate
+	url = https://github.com/envoyproxy/protoc-gen-validate.git
