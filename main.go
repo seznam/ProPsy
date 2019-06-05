@@ -84,7 +84,7 @@ var listenHealth string
 var healthServer *propsy.HealthServer
 
 func init() {
-	flag.Var(&endpointClusters, "endpointcluster", "Kubernetes endpoint cluster map kubeconfigPath:zone")
+	flag.Var(&endpointClusters, "endpointcluster", "Kubernetes endpoint cluster map kubeconfigPath:zone:priority")
 	flag.Var(&configClusters, "configcluster", "Kubernetes config cluster map kubeconfigPath:zone")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug output")
 	flag.StringVar(&listenConfig, "listen", ":8888", "IP:Port to listen on")
