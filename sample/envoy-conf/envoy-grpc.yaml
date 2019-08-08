@@ -21,7 +21,7 @@ cluster_manager:
   local_cluster_name: xds_cluster
 
 node:
-  id: scif-proxy
+  id: fweb 
   cluster: ko
   locality:
     region: ko

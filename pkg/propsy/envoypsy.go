@@ -124,10 +124,10 @@ func GenerateEnvoyConfig(n *NodeConfig) {
 
 	for l := range n.Listeners {
 		_listener := n.Listeners[l]
-		var vhosts []route.VirtualHost
+		var vhosts []*route.VirtualHost
 		for v := range n.Listeners[l].VirtualHosts {
 			_vhost := _listener.VirtualHosts[v]
-			var routes []route.Route
+			var routes []*route.Route
 			for r := range _vhost.Routes {
 				_route := _vhost.Routes[r]
 				var routedClusters []*route.WeightedCluster_ClusterWeight

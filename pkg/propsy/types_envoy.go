@@ -18,12 +18,12 @@ import (
 	"time"
 )
 
-func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
+func (E *Endpoint) ToEnvoy(port int) *endpoint.LbEndpoint {
 	healthStatus := core.HealthStatus_HEALTHY
 	if !E.Healthy {
 		healthStatus = core.HealthStatus_UNHEALTHY
 	}
-	return endpoint.LbEndpoint{
+	return &endpoint.LbEndpoint{
 		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 			Endpoint: &endpoint.Endpoint{
 				Address: &core.Address{
@@ -43,12 +43,12 @@ func (E *Endpoint) ToEnvoy(port int) endpoint.LbEndpoint {
 	}
 }
 
-func (E *EndpointConfig) ToEnvoy(priority, weight int) endpoint.LocalityLbEndpoints {
-	var endpoints []endpoint.LbEndpoint
+func (E *EndpointConfig) ToEnvoy(priority, weight int) *endpoint.LocalityLbEndpoints {
+	var endpoints []*endpoint.LbEndpoint
 	for i := range E.Endpoints {
 		endpoints = append(endpoints, E.Endpoints[i].ToEnvoy(E.ServicePort))
 	}
-	return endpoint.LocalityLbEndpoints{
+	return &endpoint.LocalityLbEndpoints{
 		LbEndpoints:         endpoints,
 		Priority:            uint32(priority),
 		LoadBalancingWeight: UInt32FromInteger(weight),
@@ -67,8 +67,8 @@ func (C *ClusterConfig) ToEnvoy() *v2.Cluster {
 	return ClusterToEnvoy(C.Name, C.ConnectTimeout, C.MaxRequests, C.HealthCheck, C.Outlier)
 }
 
-func (V *VirtualHost) ToEnvoy(routes []route.Route) route.VirtualHost {
-	return route.VirtualHost{
+func (V *VirtualHost) ToEnvoy(routes []*route.Route) *route.VirtualHost {
+	return &route.VirtualHost{
 		Name:    V.Name,
 		Domains: V.Domains,
 		Routes:  routes,
@@ -82,7 +82,7 @@ func WeightedClusterToEnvoy(clusterName string, zoneWeight int) *route.WeightedC
 	}
 }
 
-func (L *ListenerConfig) GenerateHCM(vhosts []route.VirtualHost) *v22.HttpConnectionManager {
+func (L *ListenerConfig) GenerateHCM(vhosts []*route.VirtualHost) *v22.HttpConnectionManager {
 	return &v22.HttpConnectionManager{
 		CodecType:  v22.AUTO,
 		StatPrefix: L.Name,
@@ -103,7 +103,7 @@ func (L *ListenerConfig) GenerateHCM(vhosts []route.VirtualHost) *v22.HttpConnec
 	}
 }
 
-func (L *ListenerConfig) GenerateWeightedCluster(host route.VirtualHost) *v23.TcpProxy_WeightedClusters {
+func (L *ListenerConfig) GenerateWeightedCluster(host *route.VirtualHost) *v23.TcpProxy_WeightedClusters {
 	return &v23.TcpProxy_WeightedClusters{
 		WeightedClusters: &v23.TcpProxy_WeightedCluster{
 			Clusters: []*v23.TcpProxy_WeightedCluster_ClusterWeight{
@@ -123,7 +123,7 @@ func (L *ListenerConfig) GenerateTCP(clusters *v23.TcpProxy_WeightedClusters) *v
 	}
 }
 
-type ClusterLoadAssignment []endpoint.LocalityLbEndpoints
+type ClusterLoadAssignment []*endpoint.LocalityLbEndpoints
 
 func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssignment {
 	return &v2.ClusterLoadAssignment{
@@ -133,7 +133,7 @@ func (C *ClusterLoadAssignment) ToEnvoy(clusterName string) *v2.ClusterLoadAssig
 }
 
 func (R *RouteConfig) GeneratePrioritizedEndpoints(localZone string) ClusterLoadAssignment {
-	var endpoints []endpoint.LocalityLbEndpoints
+	var endpoints []*endpoint.LocalityLbEndpoints
 
 	// find the lowest local priority
 	lowestPriority := math.MaxInt32
@@ -233,9 +233,11 @@ func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int, healthCh
 		hcs = append(hcs, hc)
 	}
 
+	connectTimeoutDuration := time.Duration(connectTimeout) * time.Millisecond
+
 	return &v2.Cluster{
 		Name:           targetName,
-		ConnectTimeout: time.Duration(connectTimeout) * time.Millisecond,
+		ConnectTimeout: &connectTimeoutDuration,
 		ClusterDiscoveryType: &v2.Cluster_Type{
 			Type: v2.Cluster_EDS,
 		},
@@ -269,7 +271,7 @@ func ClusterToEnvoy(targetName string, connectTimeout, maxRequests int, healthCh
 	}
 }
 
-func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, error) {
+func (L *ListenerConfig) ToEnvoy(vhosts []*route.VirtualHost) (*v2.Listener, error) {
 	listenHost, listenPort := L.GenerateListenParts()
 
 	var FilterConfig *types.Struct
@@ -330,7 +332,7 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 
 	return &v2.Listener{
 		Name: L.Name,
-		Address: core.Address{
+		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
 					Address:    listenHost,
@@ -341,8 +343,8 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 				},
 			},
 		},
-		FilterChains: []listener.FilterChain{{
-			Filters: []listener.Filter{{
+		FilterChains: []*listener.FilterChain{{
+			Filters: []*listener.Filter{{
 				Name: FilterType,
 				ConfigType: &listener.Filter_Config{
 					Config: FilterConfig,
@@ -353,11 +355,11 @@ func (L *ListenerConfig) ToEnvoy(vhosts []route.VirtualHost) (*v2.Listener, erro
 	}, nil
 }
 
-func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWeight) route.Route {
+func (R *RouteConfig) ToEnvoy(routedClusters []*route.WeightedCluster_ClusterWeight) *route.Route {
 	totalWeight, _, _, _, _, _ := R.CalculateWeights()
 
-	return route.Route{
-		Match: route.RouteMatch{
+	return &route.Route{
+		Match: &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: R.PathPrefix,
 			},
